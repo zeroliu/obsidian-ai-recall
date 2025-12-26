@@ -1,200 +1,200 @@
-import { describe, it, expect } from 'vitest';
-import { runClusteringPipeline, type PipelineInput } from '../pipeline';
-import type { ClusteringConfig } from '../types';
-import type { VaultFixture } from '@/test/fixtures/types';
-import { MockVaultAdapter } from '@/adapters/mock/MockVaultAdapter';
 import { MockMetadataAdapter } from '@/adapters/mock/MockMetadataAdapter';
-import reactVault from '@/test/fixtures/react-vault.json';
-import mixedVault from '@/test/fixtures/mixed-vault.json';
-import emptyVault from '@/test/fixtures/empty-vault.json';
+import { MockVaultAdapter } from '@/adapters/mock/MockVaultAdapter';
 import type { FileMetadata } from '@/ports/IMetadataProvider';
+import emptyVault from '@/test/fixtures/empty-vault.json';
+import mixedVault from '@/test/fixtures/mixed-vault.json';
+import reactVault from '@/test/fixtures/react-vault.json';
+import type { VaultFixture } from '@/test/fixtures/types';
+import { describe, expect, it } from 'vitest';
+import { type PipelineInput, runClusteringPipeline } from '../pipeline';
+import type { ClusteringConfig } from '../types';
 
 describe('Clustering Pipeline Integration', () => {
-  const config: Partial<ClusteringConfig> = {
-    minClusterSize: 2,
-    maxClusterSize: 100,
-  };
+	const config: Partial<ClusteringConfig> = {
+		minClusterSize: 2,
+		maxClusterSize: 100,
+	};
 
-  async function createPipelineInput(
-    fixture: VaultFixture,
-    configOverride?: Partial<ClusteringConfig>
-  ): Promise<PipelineInput> {
-    const vaultAdapter = new MockVaultAdapter(fixture);
-    const metadataAdapter = new MockMetadataAdapter(fixture);
+	async function createPipelineInput(
+		fixture: VaultFixture,
+		configOverride?: Partial<ClusteringConfig>,
+	): Promise<PipelineInput> {
+		const vaultAdapter = new MockVaultAdapter(fixture);
+		const metadataAdapter = new MockMetadataAdapter(fixture);
 
-    const files = await vaultAdapter.listMarkdownFiles();
-    const resolvedLinks = await metadataAdapter.getResolvedLinks();
+		const files = await vaultAdapter.listMarkdownFiles();
+		const resolvedLinks = await metadataAdapter.getResolvedLinks();
 
-    // Build metadata map
-    const metadata = new Map<string, FileMetadata>();
-    for (const file of files) {
-      const meta = await metadataAdapter.getFileMetadata(file.path);
-      if (meta) {
-        metadata.set(file.path, meta);
-      }
-    }
+		// Build metadata map
+		const metadata = new Map<string, FileMetadata>();
+		for (const file of files) {
+			const meta = await metadataAdapter.getFileMetadata(file.path);
+			if (meta) {
+				metadata.set(file.path, meta);
+			}
+		}
 
-    return {
-      files,
-      metadata,
-      resolvedLinks,
-      config: { ...config, ...configOverride },
-    };
-  }
+		return {
+			files,
+			metadata,
+			resolvedLinks,
+			config: { ...config, ...configOverride },
+		};
+	}
 
-  describe('React Vault', () => {
-    it('should cluster React notes together', async () => {
-      const input = await createPipelineInput(reactVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+	describe('React Vault', () => {
+		it('should cluster React notes together', async () => {
+			const input = await createPipelineInput(reactVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      expect(result.clusters.length).toBeGreaterThan(0);
-      expect(result.stats.totalNotes).toBe(6);
+			expect(result.clusters.length).toBeGreaterThan(0);
+			expect(result.stats.totalNotes).toBe(6);
 
-      // All notes should be in clusters
-      const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
-      expect(allNoteIds).toHaveLength(6);
+			// All notes should be in clusters
+			const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
+			expect(allNoteIds).toHaveLength(6);
 
-      // Should have react as a dominant tag in at least one cluster
-      const reactCluster = result.clusters.find((c) =>
-        c.dominantTags.some((t) => t.includes('react'))
-      );
-      expect(reactCluster).toBeDefined();
-    });
+			// Should have react as a dominant tag in at least one cluster
+			const reactCluster = result.clusters.find((c) =>
+				c.dominantTags.some((t) => t.includes('react')),
+			);
+			expect(reactCluster).toBeDefined();
+		});
 
-    it('should calculate correct statistics', async () => {
-      const input = await createPipelineInput(reactVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+		it('should calculate correct statistics', async () => {
+			const input = await createPipelineInput(reactVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      expect(result.stats.totalNotes).toBe(6);
-      expect(result.stats.totalClusters).toBeGreaterThan(0);
-      expect(result.stats.averageClusterSize).toBeGreaterThan(0);
-      expect(result.stats.minClusterSize).toBeLessThanOrEqual(result.stats.maxClusterSize);
-    });
+			expect(result.stats.totalNotes).toBe(6);
+			expect(result.stats.totalClusters).toBeGreaterThan(0);
+			expect(result.stats.averageClusterSize).toBeGreaterThan(0);
+			expect(result.stats.minClusterSize).toBeLessThanOrEqual(result.stats.maxClusterSize);
+		});
 
-    it('should respect minClusterSize', async () => {
-      const input = await createPipelineInput(reactVault as VaultFixture, {
-        minClusterSize: 3,
-      });
-      const result = runClusteringPipeline(input);
+		it('should respect minClusterSize', async () => {
+			const input = await createPipelineInput(reactVault as VaultFixture, {
+				minClusterSize: 3,
+			});
+			const result = runClusteringPipeline(input);
 
-      // Small clusters should be merged
-      result.clusters.forEach((cluster) => {
-        // Some clusters might still be small if they can't be merged
-        // but they should be at least 1
-        expect(cluster.noteIds.length).toBeGreaterThanOrEqual(1);
-      });
-    });
-  });
+			// Small clusters should be merged
+			result.clusters.forEach((cluster) => {
+				// Some clusters might still be small if they can't be merged
+				// but they should be at least 1
+				expect(cluster.noteIds.length).toBeGreaterThanOrEqual(1);
+			});
+		});
+	});
 
-  describe('Mixed Vault', () => {
-    it('should cluster React and Golf notes separately', async () => {
-      const input = await createPipelineInput(mixedVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+	describe('Mixed Vault', () => {
+		it('should cluster React and Golf notes separately', async () => {
+			const input = await createPipelineInput(mixedVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      expect(result.stats.totalNotes).toBe(8);
+			expect(result.stats.totalNotes).toBe(8);
 
-      // Should have multiple clusters due to different topics
-      expect(result.clusters.length).toBeGreaterThan(0);
+			// Should have multiple clusters due to different topics
+			expect(result.clusters.length).toBeGreaterThan(0);
 
-      // Check that notes are grouped by topic
-      const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
-      expect(new Set(allNoteIds).size).toBe(8); // All notes unique
-    });
+			// Check that notes are grouped by topic
+			const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
+			expect(new Set(allNoteIds).size).toBe(8); // All notes unique
+		});
 
-    it('should separate daily notes from topic notes', async () => {
-      const input = await createPipelineInput(mixedVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+		it('should separate daily notes from topic notes', async () => {
+			const input = await createPipelineInput(mixedVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      // Daily notes should be in their own cluster or with similar notes
-      const dailyCluster = result.clusters.find((c) =>
-        c.noteIds.some((id) => id.includes('daily/'))
-      );
+			// Daily notes should be in their own cluster or with similar notes
+			const dailyCluster = result.clusters.find((c) =>
+				c.noteIds.some((id) => id.includes('daily/')),
+			);
 
-      if (dailyCluster) {
-        // Daily notes should be grouped together
-        const dailyNotes = dailyCluster.noteIds.filter((id) => id.includes('daily/'));
-        expect(dailyNotes.length).toBeGreaterThanOrEqual(1);
-      }
-    });
+			if (dailyCluster) {
+				// Daily notes should be grouped together
+				const dailyNotes = dailyCluster.noteIds.filter((id) => id.includes('daily/'));
+				expect(dailyNotes.length).toBeGreaterThanOrEqual(1);
+			}
+		});
 
-    it('should handle root-level notes', async () => {
-      const input = await createPipelineInput(mixedVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+		it('should handle root-level notes', async () => {
+			const input = await createPipelineInput(mixedVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      // Root Note.md should be somewhere
-      const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
-      expect(allNoteIds).toContain('Root Note.md');
-    });
-  });
+			// Root Note.md should be somewhere
+			const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
+			expect(allNoteIds).toContain('Root Note.md');
+		});
+	});
 
-  describe('Empty Vault', () => {
-    it('should handle empty vault gracefully', async () => {
-      const input = await createPipelineInput(emptyVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+	describe('Empty Vault', () => {
+		it('should handle empty vault gracefully', async () => {
+			const input = await createPipelineInput(emptyVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      expect(result.clusters).toHaveLength(0);
-      expect(result.stats.totalNotes).toBe(0);
-      expect(result.stats.totalClusters).toBe(0);
-    });
-  });
+			expect(result.clusters).toHaveLength(0);
+			expect(result.stats.totalNotes).toBe(0);
+			expect(result.stats.totalClusters).toBe(0);
+		});
+	});
 
-  describe('Pipeline Steps', () => {
-    it('should preserve folder path information', async () => {
-      const input = await createPipelineInput(reactVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+	describe('Pipeline Steps', () => {
+		it('should preserve folder path information', async () => {
+			const input = await createPipelineInput(reactVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      // At least one cluster should have folder path info
-      const clusterWithFolder = result.clusters.find((c) => c.folderPath !== '');
-      expect(clusterWithFolder).toBeDefined();
-    });
+			// At least one cluster should have folder path info
+			const clusterWithFolder = result.clusters.find((c) => c.folderPath !== '');
+			expect(clusterWithFolder).toBeDefined();
+		});
 
-    it('should calculate link density', async () => {
-      const input = await createPipelineInput(reactVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+		it('should calculate link density', async () => {
+			const input = await createPipelineInput(reactVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      // React vault has interconnected notes, so at least one cluster should have non-zero density
-      const hasLinkDensity = result.clusters.some((c) => c.internalLinkDensity > 0);
-      expect(hasLinkDensity).toBe(true);
-    });
+			// React vault has interconnected notes, so at least one cluster should have non-zero density
+			const hasLinkDensity = result.clusters.some((c) => c.internalLinkDensity > 0);
+			expect(hasLinkDensity).toBe(true);
+		});
 
-    it('should generate candidate names', async () => {
-      const input = await createPipelineInput(reactVault as VaultFixture);
-      const result = runClusteringPipeline(input);
+		it('should generate candidate names', async () => {
+			const input = await createPipelineInput(reactVault as VaultFixture);
+			const result = runClusteringPipeline(input);
 
-      // Every cluster should have at least one candidate name
-      result.clusters.forEach((cluster) => {
-        expect(cluster.candidateNames.length).toBeGreaterThan(0);
-      });
-    });
-  });
+			// Every cluster should have at least one candidate name
+			result.clusters.forEach((cluster) => {
+				expect(cluster.candidateNames.length).toBeGreaterThan(0);
+			});
+		});
+	});
 
-  describe('Configuration', () => {
-    it('should use default config when not provided', async () => {
-      const fixture = reactVault as VaultFixture;
-      const vaultAdapter = new MockVaultAdapter(fixture);
-      const metadataAdapter = new MockMetadataAdapter(fixture);
+	describe('Configuration', () => {
+		it('should use default config when not provided', async () => {
+			const fixture = reactVault as VaultFixture;
+			const vaultAdapter = new MockVaultAdapter(fixture);
+			const metadataAdapter = new MockMetadataAdapter(fixture);
 
-      const input: PipelineInput = {
-        files: await vaultAdapter.listMarkdownFiles(),
-        metadata: new Map(),
-        resolvedLinks: await metadataAdapter.getResolvedLinks(),
-        // No config provided
-      };
+			const input: PipelineInput = {
+				files: await vaultAdapter.listMarkdownFiles(),
+				metadata: new Map(),
+				resolvedLinks: await metadataAdapter.getResolvedLinks(),
+				// No config provided
+			};
 
-      const result = runClusteringPipeline(input);
+			const result = runClusteringPipeline(input);
 
-      expect(result.clusters).toBeDefined();
-    });
+			expect(result.clusters).toBeDefined();
+		});
 
-    it('should respect maxClusterSize', async () => {
-      const input = await createPipelineInput(mixedVault as VaultFixture, {
-        maxClusterSize: 3,
-      });
-      const result = runClusteringPipeline(input);
+		it('should respect maxClusterSize', async () => {
+			const input = await createPipelineInput(mixedVault as VaultFixture, {
+				maxClusterSize: 3,
+			});
+			const result = runClusteringPipeline(input);
 
-      result.clusters.forEach((cluster) => {
-        expect(cluster.noteIds.length).toBeLessThanOrEqual(3);
-      });
-    });
-  });
+			result.clusters.forEach((cluster) => {
+				expect(cluster.noteIds.length).toBeLessThanOrEqual(3);
+			});
+		});
+	});
 });

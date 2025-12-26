@@ -1,10 +1,7 @@
-import { Notice, Plugin } from 'obsidian';
-import {
-	ObsidianVaultAdapter,
-	ObsidianMetadataAdapter,
-} from '@/adapters/obsidian';
+import { ObsidianMetadataAdapter, ObsidianVaultAdapter } from '@/adapters/obsidian';
 import { runClusteringPipeline } from '@/domain/clustering/pipeline';
 import type { FileMetadata } from '@/ports/IMetadataProvider';
+import { Notice, Plugin } from 'obsidian';
 
 /**
  * Obsidian AI Recall Plugin
@@ -44,8 +41,7 @@ export default class AIRecallPlugin extends Plugin {
 			// Build metadata map
 			const metadata = new Map<string, FileMetadata>();
 			for (const file of files) {
-				const fileMeta =
-					await this.metadataAdapter.getFileMetadata(file.path);
+				const fileMeta = await this.metadataAdapter.getFileMetadata(file.path);
 				if (fileMeta) {
 					metadata.set(file.path, fileMeta);
 				}

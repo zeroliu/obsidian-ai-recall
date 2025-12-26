@@ -13,7 +13,8 @@
     "format": "biome format ./src --write",
     "check": "biome check ./src",
     "typecheck": "tsc --noEmit",
-    "export-fixture": "tsx scripts/export-vault-fixture.ts"
+    "export-fixture": "tsx scripts/export-vault-fixture.ts",
+    "prepare": "husky"
   },
   "keywords": [
     "obsidian",
@@ -29,7 +30,9 @@
     "@types/node": "^22.10.2",
     "builtin-modules": "^4.0.0",
     "esbuild": "^0.25.0",
+    "husky": "^9.1.7",
     "jsdom": "^25.0.1",
+    "lint-staged": "^16.2.7",
     "obsidian": "^1.7.2",
     "tsx": "^4.21.0",
     "typescript": "^5.7.2",
@@ -37,5 +40,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "biome check --write"
+    ]
   }
 }

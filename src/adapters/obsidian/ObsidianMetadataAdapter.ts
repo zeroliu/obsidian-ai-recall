@@ -1,10 +1,10 @@
-import { TFile, type App, type CachedMetadata } from 'obsidian';
 import type {
 	FileMetadata,
 	HeadingInfo,
 	IMetadataProvider,
 	ResolvedLinks,
 } from '@/ports/IMetadataProvider';
+import { type App, type CachedMetadata, TFile } from 'obsidian';
 
 /**
  * Real Obsidian implementation of IMetadataProvider
@@ -66,11 +66,7 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 		return Array.from(tagSet).sort();
 	}
 
-	private toFileMetadata(
-		path: string,
-		cache: CachedMetadata,
-		content: string,
-	): FileMetadata {
+	private toFileMetadata(path: string, cache: CachedMetadata, content: string): FileMetadata {
 		// Extract tags from inline tags and frontmatter
 		const tagSet = new Set<string>();
 		if (cache.tags) {
@@ -126,10 +122,7 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 		};
 	}
 
-	private extractFrontmatterTags(
-		fmTags: unknown,
-		tagSet: Set<string>,
-	): void {
+	private extractFrontmatterTags(fmTags: unknown, tagSet: Set<string>): void {
 		if (Array.isArray(fmTags)) {
 			for (const tag of fmTags) {
 				if (typeof tag === 'string') {
@@ -161,10 +154,7 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 		const withoutInlineCode = withoutCode.replace(/`[^`]+`/g, '');
 
 		// Remove wiki-links but keep display text
-		const withoutLinks = withoutInlineCode.replace(
-			/\[\[(?:[^\]|]+\|)?([^\]]+)\]\]/g,
-			'$1',
-		);
+		const withoutLinks = withoutInlineCode.replace(/\[\[(?:[^\]|]+\|)?([^\]]+)\]\]/g, '$1');
 
 		// Remove markdown links but keep display text
 		const withoutMdLinks = withoutLinks.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');

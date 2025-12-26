@@ -8,10 +8,7 @@ import type { ClusteringConfig } from './types';
  * @param config - Clustering configuration with excludePaths
  * @returns Filtered array of files
  */
-export function filterExcludedPaths(
-	files: FileInfo[],
-	config: ClusteringConfig
-): FileInfo[] {
+export function filterExcludedPaths(files: FileInfo[], config: ClusteringConfig): FileInfo[] {
 	if (config.excludePaths.length === 0) {
 		return files;
 	}
@@ -62,14 +59,28 @@ export function matchGlob(pattern: string, path: string): boolean {
 	regexStr = regexStr.replace(/[.+^${}()|[\]\\]/g, '\\$&');
 
 	// Step 3: Replace placeholders with regex patterns
-	regexStr = regexStr
-		.replace(/\x00STARGLOB\x00/g, '(?:.*\\/)?')
-		.replace(/\x00MIDGLOB\x00/g, '\\/(?:.*\\/)?')
-		.replace(/\x00ENDGLOB\x00/g, '(?:\\/.*)?')
-		.replace(/\x00ANYGLOB\x00/g, '.*')
-		.replace(/\x00STAR\x00/g, '[^/]*')
-		.replace(/\x00QUESTION\x00/g, '[^/]');
+	// Using null byte (\x00) as placeholder delimiter since it can't appear in file paths
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional use of null byte as delimiter
+	const STARGLOB_RE = /\x00STARGLOB\x00/g;
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional use of null byte as delimiter
+	const MIDGLOB_RE = /\x00MIDGLOB\x00/g;
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional use of null byte as delimiter
+	const ENDGLOB_RE = /\x00ENDGLOB\x00/g;
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional use of null byte as delimiter
+	const ANYGLOB_RE = /\x00ANYGLOB\x00/g;
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional use of null byte as delimiter
+	const STAR_RE = /\x00STAR\x00/g;
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional use of null byte as delimiter
+	const QUESTION_RE = /\x00QUESTION\x00/g;
 
-	const regex = new RegExp('^' + regexStr + '$');
+	regexStr = regexStr
+		.replace(STARGLOB_RE, '(?:.*\\/)?')
+		.replace(MIDGLOB_RE, '\\/(?:.*\\/)?')
+		.replace(ENDGLOB_RE, '(?:\\/.*)?')
+		.replace(ANYGLOB_RE, '.*')
+		.replace(STAR_RE, '[^/]*')
+		.replace(QUESTION_RE, '[^/]');
+
+	const regex = new RegExp(`^${regexStr}$`);
 	return regex.test(path);
 }
