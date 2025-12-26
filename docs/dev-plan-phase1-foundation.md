@@ -368,3 +368,38 @@ When A-B is validated, continue with:
 - **Phase G**: Claude API integration for concept naming & questions
 
 LLM Provider: Claude API (Anthropic) - to be integrated in Phase G.
+
+---
+
+## Future Clustering Improvements
+
+These improvements are documented for future implementation after Phase B.
+
+### Link-Based Splitting (After Phase B)
+
+Currently links are only used for merging clusters. Add splitting for low-density clusters:
+
+**New Pass 3.5: Split by Link Communities**
+```
+For each cluster with size > maxClusterSize/2 and linkDensity < 0.15:
+  Build bidirectional adjacency list (sample-based if cluster > 500 notes)
+  Find connected components via BFS
+  If multiple components >= minClusterSize:
+    Split into separate clusters
+  Else:
+    Find high-link "core" notes (top 10% by connections)
+    Assign remaining notes to nearest core by:
+      1. Direct link exists → assign to that core
+      2. Shared tags → assign to core with highest Jaccard similarity
+      3. Same parent folder → assign to core in same folder
+      4. Else → leave in "uncategorized" sub-cluster
+```
+
+### Edge Cases to Handle (Local Clustering)
+
+| Case | Handling |
+|------|----------|
+| Unlinked orphan notes | Separate into "Uncategorized" cluster |
+| Multi-language notes (EN + ZH on same topic) | Cluster by dominant language, cross-link via shared wiki-links |
+| Template/boilerplate notes | Detect via high structural similarity, create "Templates" cluster or exclude |
+| Stub notes (< 50 words, just links) | Assign to cluster of most-linked note, exclude from cluster naming |

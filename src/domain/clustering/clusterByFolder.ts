@@ -26,12 +26,14 @@ export function clusterByFolder(files: FileInfo[], _config: ClusteringConfig): C
   for (const [folder, noteIds] of folderMap.entries()) {
     // Generate candidate names from folder path
     const candidateNames = generateFolderCandidateNames(folder);
+    const folderDisplay = folder === '/' ? 'root' : `'${folder}'`;
 
     clusters.push(
       createCluster({
         noteIds,
         folderPath: folder === '/' ? '' : folder,
         candidateNames,
+        reasons: [`Grouped by folder: ${folderDisplay} (${noteIds.length} notes)`],
       })
     );
   }
