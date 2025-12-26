@@ -1,4 +1,4 @@
-import type { App, CachedMetadata } from 'obsidian';
+import { TFile, type App, type CachedMetadata } from 'obsidian';
 import type {
 	FileMetadata,
 	HeadingInfo,
@@ -18,7 +18,15 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 		if (!cache) {
 			return null;
 		}
-		return this.toFileMetadata(path, cache);
+
+		// Read file content for word count calculation
+		const file = this.app.vault.getAbstractFileByPath(path);
+		let content = '';
+		if (file instanceof TFile) {
+			content = await this.app.vault.cachedRead(file);
+		}
+
+		return this.toFileMetadata(path, cache, content);
 	}
 
 	async getResolvedLinks(): Promise<ResolvedLinks> {
@@ -58,22 +66,22 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 		return Array.from(tagSet).sort();
 	}
 
-	private toFileMetadata(path: string, cache: CachedMetadata): FileMetadata {
+	private toFileMetadata(
+		path: string,
+		cache: CachedMetadata,
+		content: string,
+	): FileMetadata {
 		// Extract tags from inline tags and frontmatter
-		const tags: string[] = [];
+		const tagSet = new Set<string>();
 		if (cache.tags) {
 			for (const tagCache of cache.tags) {
-				tags.push(tagCache.tag);
+				tagSet.add(tagCache.tag);
 			}
 		}
 		if (cache.frontmatter?.tags) {
-			this.extractFrontmatterTags(cache.frontmatter.tags, new Set(tags));
-			// Re-extract to get the normalized tags added to array
-			const tagSet = new Set(tags);
 			this.extractFrontmatterTags(cache.frontmatter.tags, tagSet);
-			tags.length = 0;
-			tags.push(...tagSet);
 		}
+		const tags = Array.from(tagSet);
 
 		// Extract links
 		const links: string[] = [];
@@ -105,9 +113,8 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 			}
 		}
 
-		// Word count is not directly available from cache
-		// Would need to read file content to calculate
-		const wordCount = 0;
+		// Calculate word count from content
+		const wordCount = this.countWords(content);
 
 		return {
 			path,
@@ -134,5 +141,46 @@ export class ObsidianMetadataAdapter implements IMetadataProvider {
 			const normalized = fmTags.startsWith('#') ? fmTags : `#${fmTags}`;
 			tagSet.add(normalized);
 		}
+	}
+
+	/**
+	 * Count words in content, handling both Latin and CJK text
+	 */
+	private countWords(content: string): number {
+		if (!content) {
+			return 0;
+		}
+
+		// Remove frontmatter (YAML between --- markers)
+		const withoutFrontmatter = content.replace(/^---[\s\S]*?---\n?/, '');
+
+		// Remove code blocks
+		const withoutCode = withoutFrontmatter.replace(/```[\s\S]*?```/g, '');
+
+		// Remove inline code
+		const withoutInlineCode = withoutCode.replace(/`[^`]+`/g, '');
+
+		// Remove wiki-links but keep display text
+		const withoutLinks = withoutInlineCode.replace(
+			/\[\[(?:[^\]|]+\|)?([^\]]+)\]\]/g,
+			'$1',
+		);
+
+		// Remove markdown links but keep display text
+		const withoutMdLinks = withoutLinks.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+		// Remove HTML tags
+		const withoutHtml = withoutMdLinks.replace(/<[^>]+>/g, '');
+
+		// Count Latin words (split by whitespace and punctuation)
+		const latinWords = withoutHtml
+			.split(/[\s\p{P}]+/u)
+			.filter((word) => word.length > 0 && /[a-zA-Z]/.test(word));
+
+		// Count CJK characters (each character counts as a word)
+		const cjkChars = withoutHtml.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g);
+		const cjkCount = cjkChars?.length ?? 0;
+
+		return latinWords.length + cjkCount;
 	}
 }
