@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { createFileInfo } from '@/test/fixtures/types';
+import { describe, expect, it } from 'vitest';
 import { filterExcludedPaths, matchGlob } from '../filterFiles';
 import { DEFAULT_CLUSTERING_CONFIG } from '../types';
-import { createFileInfo } from '@/test/fixtures/types';
 
 describe('matchGlob', () => {
 	it('should match exact file names', () => {

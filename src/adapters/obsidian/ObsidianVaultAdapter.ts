@@ -1,5 +1,5 @@
-import { TFile, type App } from 'obsidian';
 import type { FileInfo, IVaultProvider } from '@/ports/IVaultProvider';
+import { type App, TFile } from 'obsidian';
 
 /**
  * Real Obsidian implementation of IVaultProvider

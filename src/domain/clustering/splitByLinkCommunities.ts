@@ -1,5 +1,5 @@
-import type { ResolvedLinks, FileMetadata } from '@/ports/IMetadataProvider';
-import { createCluster, generateClusterId, type Cluster, type ClusteringConfig } from './types';
+import type { FileMetadata, ResolvedLinks } from '@/ports/IMetadataProvider';
+import { type Cluster, type ClusteringConfig, createCluster, generateClusterId } from './types';
 
 /**
  * Configuration for link-based splitting
@@ -44,7 +44,7 @@ export function splitByLinkCommunities(
 	clusters: Cluster[],
 	resolvedLinks: ResolvedLinks,
 	metadata: Map<string, FileMetadata>,
-	config: ClusteringConfig
+	config: ClusteringConfig,
 ): Cluster[] {
 	const linkConfig: LinkSplitConfig = {
 		...DEFAULT_LINK_SPLIT_CONFIG,
@@ -72,11 +72,11 @@ export function splitByLinkCommunities(
 
 		// Filter components by minimum size
 		const significantComponents = components.filter(
-			(comp) => comp.length >= linkConfig.minComponentSize
+			(comp) => comp.length >= linkConfig.minComponentSize,
 		);
 
 		// Collect orphan notes (not in any significant component)
-		const componentNotes = new Set(significantComponents.flatMap((c) => c));
+		const componentNotes = new Set(significantComponents.flat());
 		const orphanNotes = cluster.noteIds.filter((id) => !componentNotes.has(id));
 
 		if (significantComponents.length > 1) {
@@ -95,7 +95,7 @@ export function splitByLinkCommunities(
 							...cluster.reasons,
 							`Split by link community: ${componentNoteIds.length} connected notes`,
 						],
-					})
+					}),
 				);
 			}
 
@@ -105,7 +105,7 @@ export function splitByLinkCommunities(
 					orphanNotes,
 					significantComponents,
 					resolvedLinks,
-					metadata
+					metadata,
 				);
 
 				// Add orphans assigned to components to existing result clusters
@@ -129,11 +129,8 @@ export function splitByLinkCommunities(
 							dominantTags: [],
 							candidateNames: ['Uncategorized', ...cluster.candidateNames],
 							internalLinkDensity: 0,
-							reasons: [
-								...cluster.reasons,
-								`Unlinked orphan notes (${unassigned.length} notes)`,
-							],
-						})
+							reasons: [...cluster.reasons, `Unlinked orphan notes (${unassigned.length} notes)`],
+						}),
 					);
 				}
 			}
@@ -148,7 +145,7 @@ export function splitByLinkCommunities(
 					cores,
 					adjacency,
 					resolvedLinks,
-					metadata
+					metadata,
 				);
 
 				for (let i = 0; i < cores.length; i++) {
@@ -166,7 +163,7 @@ export function splitByLinkCommunities(
 									...cluster.reasons,
 									`Split by core note: ${coreNoteIds.length} notes around "${cores[i]}"`,
 								],
-							})
+							}),
 						);
 					} else {
 						// Add undersized groups to orphans for later handling
@@ -185,11 +182,8 @@ export function splitByLinkCommunities(
 							dominantTags: [],
 							candidateNames: ['Uncategorized', ...cluster.candidateNames],
 							internalLinkDensity: 0,
-							reasons: [
-								...cluster.reasons,
-								`Unassigned notes (${unassigned.length} notes)`,
-							],
-						})
+							reasons: [...cluster.reasons, `Unassigned notes (${unassigned.length} notes)`],
+						}),
 					);
 				}
 			} else {
@@ -206,8 +200,8 @@ export function splitByLinkCommunities(
 					dominantTags: cluster.dominantTags,
 					candidateNames: ['Uncategorized', ...cluster.candidateNames],
 					internalLinkDensity: 0,
-					reasons: [...cluster.reasons, `No connected communities found`],
-				})
+					reasons: [...cluster.reasons, 'No connected communities found'],
+				}),
 			);
 		}
 	}
@@ -220,7 +214,7 @@ export function splitByLinkCommunities(
  */
 export function buildBidirectionalAdjacency(
 	noteIds: string[],
-	resolvedLinks: ResolvedLinks
+	resolvedLinks: ResolvedLinks,
 ): Map<string, Set<string>> {
 	const noteSet = new Set(noteIds);
 	const adjacency = new Map<string, Set<string>>();
@@ -252,7 +246,7 @@ export function buildBidirectionalAdjacency(
  */
 export function findConnectedComponents(
 	noteIds: string[],
-	adjacency: Map<string, Set<string>>
+	adjacency: Map<string, Set<string>>,
 ): string[][] {
 	const visited = new Set<string>();
 	const components: string[][] = [];
@@ -265,8 +259,8 @@ export function findConnectedComponents(
 		const queue = [noteId];
 
 		while (queue.length > 0) {
-			const current = queue.shift()!;
-			if (visited.has(current)) continue;
+			const current = queue.shift();
+			if (current === undefined || visited.has(current)) continue;
 
 			visited.add(current);
 			component.push(current);
@@ -294,7 +288,7 @@ export function findConnectedComponents(
 export function findCoreNotes(
 	noteIds: string[],
 	adjacency: Map<string, Set<string>>,
-	corePercentage: number
+	corePercentage: number,
 ): string[] {
 	// Calculate connection counts
 	const connectionCounts: Array<[string, number]> = noteIds.map((noteId) => [
@@ -324,7 +318,7 @@ export function assignNotesToCores(
 	cores: string[],
 	adjacency: Map<string, Set<string>>,
 	_resolvedLinks: ResolvedLinks,
-	metadata: Map<string, FileMetadata>
+	metadata: Map<string, FileMetadata>,
 ): Map<number, string[]> {
 	const assignments = new Map<number, string[]>();
 
@@ -338,7 +332,7 @@ export function assignNotesToCores(
 		// Cores assign to themselves
 		const coreIndex = cores.indexOf(noteId);
 		if (coreIndex >= 0) {
-			assignments.get(coreIndex)!.push(noteId);
+			assignments.get(coreIndex)?.push(noteId);
 			continue;
 		}
 
@@ -390,7 +384,7 @@ export function assignNotesToCores(
 			}
 		}
 
-		assignments.get(assignedCore)!.push(noteId);
+		assignments.get(assignedCore)?.push(noteId);
 	}
 
 	return assignments;
@@ -403,7 +397,7 @@ function assignOrphansToComponents(
 	orphans: string[],
 	components: string[][],
 	resolvedLinks: ResolvedLinks,
-	metadata: Map<string, FileMetadata>
+	metadata: Map<string, FileMetadata>,
 ): Map<number, string[]> {
 	const assignments = new Map<number, string[]>();
 
@@ -436,7 +430,7 @@ function assignOrphansToComponents(
 			for (let i = 0; i < components.length; i++) {
 				for (const noteId of components[i]) {
 					const noteTargets = resolvedLinks[noteId];
-					if (noteTargets && noteTargets[orphan]) {
+					if (noteTargets?.[orphan]) {
 						assignedComponent = i;
 						break;
 					}
@@ -475,7 +469,7 @@ function assignOrphansToComponents(
 			}
 		}
 
-		assignments.get(assignedComponent)!.push(orphan);
+		assignments.get(assignedComponent)?.push(orphan);
 	}
 
 	return assignments;
@@ -502,7 +496,7 @@ function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
 function findDominantTagsForNotes(
 	noteIds: string[],
 	metadata: Map<string, FileMetadata>,
-	config: ClusteringConfig
+	config: ClusteringConfig,
 ): string[] {
 	const tagCounts = new Map<string, number>();
 
@@ -530,10 +524,7 @@ function findDominantTagsForNotes(
 /**
  * Calculate link density for a component
  */
-function calculateComponentDensity(
-	noteIds: string[],
-	adjacency: Map<string, Set<string>>
-): number {
+function calculateComponentDensity(noteIds: string[], adjacency: Map<string, Set<string>>): number {
 	if (noteIds.length < 2) return 0;
 
 	let totalEdges = 0;

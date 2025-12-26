@@ -1,4 +1,4 @@
-import type { ResolvedLinks, FileMetadata } from '@/ports/IMetadataProvider';
+import type { FileMetadata, ResolvedLinks } from '@/ports/IMetadataProvider';
 import type { FileInfo } from '@/ports/IVaultProvider';
 import type { Cluster } from './types';
 
@@ -19,13 +19,7 @@ export interface SpecialNotesConfig {
  */
 export const DEFAULT_SPECIAL_NOTES_CONFIG: SpecialNotesConfig = {
 	stubWordThreshold: 50,
-	templatePatterns: [
-		/^template/i,
-		/template$/i,
-		/^_template/i,
-		/\.template$/i,
-		/\/templates?\//i,
-	],
+	templatePatterns: [/^template/i, /template$/i, /^_template/i, /\.template$/i, /\/templates?\//i],
 	excludeTemplates: true,
 };
 
@@ -57,7 +51,7 @@ export function identifySpecialNotes(
 	noteIds: string[],
 	metadata: Map<string, FileMetadata>,
 	files: Map<string, FileInfo>,
-	config: SpecialNotesConfig = DEFAULT_SPECIAL_NOTES_CONFIG
+	config: SpecialNotesConfig = DEFAULT_SPECIAL_NOTES_CONFIG,
 ): SpecialNotesResult {
 	const regularNotes: string[] = [];
 	const stubNotes: string[] = [];
@@ -88,11 +82,7 @@ export function identifySpecialNotes(
 /**
  * Check if a note is a template based on path/name patterns
  */
-export function isTemplateNote(
-	path: string,
-	basename: string,
-	patterns: RegExp[]
-): boolean {
+export function isTemplateNote(path: string, basename: string, patterns: RegExp[]): boolean {
 	for (const pattern of patterns) {
 		if (pattern.test(path) || pattern.test(basename)) {
 			return true;
@@ -143,7 +133,7 @@ export function assignStubNotesToClusters(
 	stubNotes: string[],
 	clusters: Cluster[],
 	resolvedLinks: ResolvedLinks,
-	_metadata: Map<string, FileMetadata>
+	_metadata: Map<string, FileMetadata>,
 ): Cluster[] {
 	if (stubNotes.length === 0) {
 		return clusters;
@@ -230,7 +220,7 @@ export function assignStubNotesToClusters(
  */
 export function createTemplatesCluster(
 	templateNotes: string[],
-	folderPath: string
+	folderPath: string,
 ): Cluster | null {
 	if (templateNotes.length === 0) {
 		return null;
@@ -259,7 +249,7 @@ export function createTemplatesCluster(
 export function preprocessSpecialNotes(
 	files: FileInfo[],
 	metadata: Map<string, FileMetadata>,
-	config: SpecialNotesConfig = DEFAULT_SPECIAL_NOTES_CONFIG
+	config: SpecialNotesConfig = DEFAULT_SPECIAL_NOTES_CONFIG,
 ): {
 	regularFiles: FileInfo[];
 	stubFiles: FileInfo[];
@@ -274,7 +264,7 @@ export function preprocessSpecialNotes(
 		files.map((f) => f.path),
 		metadata,
 		fileMap,
-		config
+		config,
 	);
 
 	return {

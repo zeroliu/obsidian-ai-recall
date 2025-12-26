@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import type { FileMetadata, ResolvedLinks } from '@/ports/IMetadataProvider';
+import { describe, expect, it } from 'vitest';
 import {
-	splitByLinkCommunities,
+	assignNotesToCores,
 	buildBidirectionalAdjacency,
 	findConnectedComponents,
 	findCoreNotes,
-	assignNotesToCores,
+	splitByLinkCommunities,
 } from '../splitByLinkCommunities';
-import { createCluster, DEFAULT_CLUSTERING_CONFIG } from '../types';
-import type { ResolvedLinks, FileMetadata } from '@/ports/IMetadataProvider';
+import { DEFAULT_CLUSTERING_CONFIG, createCluster } from '../types';
 
 describe('buildBidirectionalAdjacency', () => {
 	it('should build empty adjacency for notes with no links', () => {

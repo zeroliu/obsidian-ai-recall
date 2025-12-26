@@ -1,16 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import {
-	identifySpecialNotes,
-	isTemplateNote,
-	isStubNote,
-	assignStubNotesToClusters,
-	createTemplatesCluster,
-	preprocessSpecialNotes,
-	DEFAULT_SPECIAL_NOTES_CONFIG,
-} from '../handleSpecialNotes';
-import { createCluster } from '../types';
 import type { FileMetadata, ResolvedLinks } from '@/ports/IMetadataProvider';
 import type { FileInfo } from '@/ports/IVaultProvider';
+import { describe, expect, it } from 'vitest';
+import {
+	DEFAULT_SPECIAL_NOTES_CONFIG,
+	assignStubNotesToClusters,
+	createTemplatesCluster,
+	identifySpecialNotes,
+	isStubNote,
+	isTemplateNote,
+	preprocessSpecialNotes,
+} from '../handleSpecialNotes';
+import { createCluster } from '../types';
 
 describe('isTemplateNote', () => {
 	const patterns = DEFAULT_SPECIAL_NOTES_CONFIG.templatePatterns;
@@ -92,11 +92,7 @@ describe('isStubNote', () => {
 
 describe('identifySpecialNotes', () => {
 	it('should separate regular, stub, and template notes', () => {
-		const noteIds = [
-			'notes/regular.md',
-			'notes/stub.md',
-			'templates/template.md',
-		];
+		const noteIds = ['notes/regular.md', 'notes/stub.md', 'templates/template.md'];
 
 		const metadata = new Map<string, FileMetadata>([
 			[
@@ -135,9 +131,30 @@ describe('identifySpecialNotes', () => {
 		]);
 
 		const files = new Map<string, FileInfo>([
-			['notes/regular.md', { path: 'notes/regular.md', basename: 'regular', folder: 'notes', modifiedAt: 0, createdAt: 0 }],
-			['notes/stub.md', { path: 'notes/stub.md', basename: 'stub', folder: 'notes', modifiedAt: 0, createdAt: 0 }],
-			['templates/template.md', { path: 'templates/template.md', basename: 'template', folder: 'templates', modifiedAt: 0, createdAt: 0 }],
+			[
+				'notes/regular.md',
+				{
+					path: 'notes/regular.md',
+					basename: 'regular',
+					folder: 'notes',
+					modifiedAt: 0,
+					createdAt: 0,
+				},
+			],
+			[
+				'notes/stub.md',
+				{ path: 'notes/stub.md', basename: 'stub', folder: 'notes', modifiedAt: 0, createdAt: 0 },
+			],
+			[
+				'templates/template.md',
+				{
+					path: 'templates/template.md',
+					basename: 'template',
+					folder: 'templates',
+					modifiedAt: 0,
+					createdAt: 0,
+				},
+			],
 		]);
 
 		const result = identifySpecialNotes(noteIds, metadata, files);
@@ -151,9 +168,7 @@ describe('identifySpecialNotes', () => {
 describe('assignStubNotesToClusters', () => {
 	it('should assign stub notes to clusters based on outgoing links', () => {
 		const stubNotes = ['stub.md'];
-		const clusters = [
-			createCluster({ noteIds: ['target.md', 'other.md'], reasons: [] }),
-		];
+		const clusters = [createCluster({ noteIds: ['target.md', 'other.md'], reasons: [] })];
 		const resolvedLinks: ResolvedLinks = {
 			'stub.md': { 'target.md': 1 },
 		};
@@ -166,9 +181,7 @@ describe('assignStubNotesToClusters', () => {
 
 	it('should assign stub notes to clusters based on incoming links', () => {
 		const stubNotes = ['stub.md'];
-		const clusters = [
-			createCluster({ noteIds: ['source.md', 'other.md'], reasons: [] }),
-		];
+		const clusters = [createCluster({ noteIds: ['source.md', 'other.md'], reasons: [] })];
 		const resolvedLinks: ResolvedLinks = {
 			'source.md': { 'stub.md': 1 },
 		};
@@ -181,9 +194,7 @@ describe('assignStubNotesToClusters', () => {
 
 	it('should not assign stub notes with no links', () => {
 		const stubNotes = ['orphan.md'];
-		const clusters = [
-			createCluster({ noteIds: ['note1.md', 'note2.md'], reasons: [] }),
-		];
+		const clusters = [createCluster({ noteIds: ['note1.md', 'note2.md'], reasons: [] })];
 		const resolvedLinks: ResolvedLinks = {};
 		const metadata = new Map<string, FileMetadata>();
 
@@ -194,9 +205,7 @@ describe('assignStubNotesToClusters', () => {
 
 	it('should return original clusters when no stub notes', () => {
 		const stubNotes: string[] = [];
-		const clusters = [
-			createCluster({ noteIds: ['note1.md'], reasons: [] }),
-		];
+		const clusters = [createCluster({ noteIds: ['note1.md'], reasons: [] })];
 		const resolvedLinks: ResolvedLinks = {};
 		const metadata = new Map<string, FileMetadata>();
 
@@ -227,15 +236,57 @@ describe('createTemplatesCluster', () => {
 describe('preprocessSpecialNotes', () => {
 	it('should separate files into categories', () => {
 		const files: FileInfo[] = [
-			{ path: 'notes/regular.md', basename: 'regular', folder: 'notes', modifiedAt: 0, createdAt: 0 },
+			{
+				path: 'notes/regular.md',
+				basename: 'regular',
+				folder: 'notes',
+				modifiedAt: 0,
+				createdAt: 0,
+			},
 			{ path: 'notes/stub.md', basename: 'stub', folder: 'notes', modifiedAt: 0, createdAt: 0 },
-			{ path: 'templates/tpl.md', basename: 'tpl', folder: 'templates', modifiedAt: 0, createdAt: 0 },
+			{
+				path: 'templates/tpl.md',
+				basename: 'tpl',
+				folder: 'templates',
+				modifiedAt: 0,
+				createdAt: 0,
+			},
 		];
 
 		const metadata = new Map<string, FileMetadata>([
-			['notes/regular.md', { path: 'notes/regular.md', tags: [], links: [], headings: [], frontmatter: {}, wordCount: 100 }],
-			['notes/stub.md', { path: 'notes/stub.md', tags: [], links: ['link.md'], headings: [], frontmatter: {}, wordCount: 10 }],
-			['templates/tpl.md', { path: 'templates/tpl.md', tags: [], links: [], headings: [], frontmatter: {}, wordCount: 50 }],
+			[
+				'notes/regular.md',
+				{
+					path: 'notes/regular.md',
+					tags: [],
+					links: [],
+					headings: [],
+					frontmatter: {},
+					wordCount: 100,
+				},
+			],
+			[
+				'notes/stub.md',
+				{
+					path: 'notes/stub.md',
+					tags: [],
+					links: ['link.md'],
+					headings: [],
+					frontmatter: {},
+					wordCount: 10,
+				},
+			],
+			[
+				'templates/tpl.md',
+				{
+					path: 'templates/tpl.md',
+					tags: [],
+					links: [],
+					headings: [],
+					frontmatter: {},
+					wordCount: 50,
+				},
+			],
 		]);
 
 		const result = preprocessSpecialNotes(files, metadata);
