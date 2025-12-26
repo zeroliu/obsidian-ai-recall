@@ -39,6 +39,7 @@ const output = {
 		folderPath: cluster.folderPath,
 		noteIds: cluster.noteIds,
 	})),
+	stubs: result.stubs,
 };
 
 const outputPath = './src/test/fixtures/zeroliu-vault-clusters.json';
@@ -46,4 +47,5 @@ writeFileSync(outputPath, JSON.stringify(output, null, 2));
 
 console.log(`\nClustering complete!`);
 console.log(`Total clusters: ${result.stats.totalClusters}`);
+console.log(`Stub notes (excluded): ${result.stats.stubCount}`);
 console.log(`Results saved to: ${outputPath}`);

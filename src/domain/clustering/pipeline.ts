@@ -7,7 +7,6 @@ import { filterExcludedPaths } from './filterFiles';
 import { groupByTitleKeywords } from './groupByTitleKeywords';
 import {
 	type SpecialNotesConfig,
-	assignStubNotesToClusters,
 	createTemplatesCluster,
 	preprocessSpecialNotes,
 } from './handleSpecialNotes';
@@ -34,6 +33,8 @@ export interface PipelineInput {
  */
 export interface PipelineResult {
 	clusters: Cluster[];
+	/** Stub notes (low content, primarily links) - excluded from clusters and LLM refinement */
+	stubs: string[];
 	stats: PipelineStats;
 }
 
@@ -46,13 +47,15 @@ export interface PipelineStats {
 	averageClusterSize: number;
 	minClusterSize: number;
 	maxClusterSize: number;
+	/** Number of stub notes excluded from clustering */
+	stubCount: number;
 }
 
 /**
  * Run the complete clustering pipeline
  *
  * The pipeline executes the following steps:
- * 0. Preprocess: Separate stub/template notes
+ * 0. Preprocess: Separate stub/template notes (stubs returned separately, not clustered)
  * 1. Group notes by folder (initial clustering)
  * 2. Refine clusters by dominant tags
  * 3. Analyze link density within clusters
@@ -62,8 +65,7 @@ export interface PipelineStats {
  * 6. Normalize cluster sizes (split large, merge small)
  * 6.5. Merge small clusters into related large clusters
  * 7. Enhance cohesion with implicit tag links
- * 8. Assign stub notes back to clusters
- * 9. Add template cluster if applicable
+ * 8. Add template cluster if applicable
  *
  * @param input - Pipeline input containing files, metadata, and config
  * @returns Pipeline result with clusters and statistics
@@ -134,17 +136,7 @@ export function runClusteringPipeline(input: PipelineInput): PipelineResult {
 	// Step 7: Enhance cohesion with implicit tag links
 	clusters = enhanceCohesionWithImplicitLinks(clusters, metadata, config);
 
-	// Step 8: Assign stub notes back to clusters
-	if (stubFiles.length > 0) {
-		clusters = assignStubNotesToClusters(
-			stubFiles.map((f) => f.path),
-			clusters,
-			resolvedLinks,
-			metadata,
-		);
-	}
-
-	// Step 9: Add template cluster if applicable
+	// Step 8: Add template cluster if applicable
 	if (templateFiles.length > 0 && !config.excludeTemplates) {
 		const templateCluster = createTemplatesCluster(
 			templateFiles.map((f) => f.path),
@@ -155,11 +147,15 @@ export function runClusteringPipeline(input: PipelineInput): PipelineResult {
 		}
 	}
 
+	// Collect stub paths
+	const stubs = stubFiles.map((f) => f.path);
+
 	// Calculate statistics
-	const stats = calculateStats(clusters);
+	const stats = calculateStats(clusters, stubs.length);
 
 	return {
 		clusters,
+		stubs,
 		stats,
 	};
 }
@@ -167,7 +163,7 @@ export function runClusteringPipeline(input: PipelineInput): PipelineResult {
 /**
  * Calculate statistics about the clusters
  */
-function calculateStats(clusters: Cluster[]): PipelineStats {
+function calculateStats(clusters: Cluster[], stubCount: number): PipelineStats {
 	if (clusters.length === 0) {
 		return {
 			totalNotes: 0,
@@ -175,6 +171,7 @@ function calculateStats(clusters: Cluster[]): PipelineStats {
 			averageClusterSize: 0,
 			minClusterSize: 0,
 			maxClusterSize: 0,
+			stubCount,
 		};
 	}
 
@@ -187,5 +184,6 @@ function calculateStats(clusters: Cluster[]): PipelineStats {
 		averageClusterSize: totalNotes / clusters.length,
 		minClusterSize: Math.min(...sizes),
 		maxClusterSize: Math.max(...sizes),
+		stubCount,
 	};
 }
