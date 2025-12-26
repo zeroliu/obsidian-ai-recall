@@ -1,0 +1,144 @@
+{
+  "vault": {
+    "files": [
+      {
+        "path": "react/React Basics.md",
+        "basename": "React Basics",
+        "folder": "react",
+        "modifiedAt": 1703980800000,
+        "createdAt": 1703894400000
+      },
+      {
+        "path": "react/React Hooks.md",
+        "basename": "React Hooks",
+        "folder": "react",
+        "modifiedAt": 1703984400000,
+        "createdAt": 1703898000000
+      },
+      {
+        "path": "golf/Golf Swing Basics.md",
+        "basename": "Golf Swing Basics",
+        "folder": "golf",
+        "modifiedAt": 1703988000000,
+        "createdAt": 1703901600000
+      },
+      {
+        "path": "golf/Driver Tips.md",
+        "basename": "Driver Tips",
+        "folder": "golf",
+        "modifiedAt": 1703991600000,
+        "createdAt": 1703905200000
+      },
+      {
+        "path": "golf/Putting Guide.md",
+        "basename": "Putting Guide",
+        "folder": "golf",
+        "modifiedAt": 1703995200000,
+        "createdAt": 1703908800000
+      },
+      {
+        "path": "daily/2024-01-01.md",
+        "basename": "2024-01-01",
+        "folder": "daily",
+        "modifiedAt": 1704067200000,
+        "createdAt": 1704067200000
+      },
+      {
+        "path": "daily/2024-01-02.md",
+        "basename": "2024-01-02",
+        "folder": "daily",
+        "modifiedAt": 1704153600000,
+        "createdAt": 1704153600000
+      },
+      {
+        "path": "Root Note.md",
+        "basename": "Root Note",
+        "folder": "",
+        "modifiedAt": 1704240000000,
+        "createdAt": 1704240000000
+      }
+    ],
+    "contents": {
+      "react/React Basics.md": "# React Basics\n\nIntroduction to React.\n\n#react #frontend",
+      "react/React Hooks.md": "# React Hooks\n\nModern React patterns.\n\nSee [[React Basics]]\n\n#react #hooks",
+      "golf/Golf Swing Basics.md": "# Golf Swing Basics\n\nFundamentals of the golf swing.\n\n#golf #swing",
+      "golf/Driver Tips.md": "# Driver Tips\n\nHow to hit your driver better.\n\nSee [[Golf Swing Basics]]\n\n#golf #driver",
+      "golf/Putting Guide.md": "# Putting Guide\n\nMaster your putting stroke.\n\n#golf #putting",
+      "daily/2024-01-01.md": "# January 1, 2024\n\nNew year, new goals.\n\n#daily",
+      "daily/2024-01-02.md": "# January 2, 2024\n\nWorking on [[React Basics]] and [[Golf Swing Basics]].\n\n#daily",
+      "Root Note.md": "# Root Note\n\nA note at the root of the vault.\n\n#misc"
+    }
+  },
+  "metadata": {
+    "metadata": {
+      "react/React Basics.md": {
+        "tags": ["#react", "#frontend"],
+        "links": [],
+        "headings": [{ "heading": "React Basics", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 8
+      },
+      "react/React Hooks.md": {
+        "tags": ["#react", "#hooks"],
+        "links": ["react/React Basics.md"],
+        "headings": [{ "heading": "React Hooks", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 12
+      },
+      "golf/Golf Swing Basics.md": {
+        "tags": ["#golf", "#swing"],
+        "links": [],
+        "headings": [{ "heading": "Golf Swing Basics", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 10
+      },
+      "golf/Driver Tips.md": {
+        "tags": ["#golf", "#driver"],
+        "links": ["golf/Golf Swing Basics.md"],
+        "headings": [{ "heading": "Driver Tips", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 14
+      },
+      "golf/Putting Guide.md": {
+        "tags": ["#golf", "#putting"],
+        "links": [],
+        "headings": [{ "heading": "Putting Guide", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 8
+      },
+      "daily/2024-01-01.md": {
+        "tags": ["#daily"],
+        "links": [],
+        "headings": [{ "heading": "January 1, 2024", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 8
+      },
+      "daily/2024-01-02.md": {
+        "tags": ["#daily"],
+        "links": ["react/React Basics.md", "golf/Golf Swing Basics.md"],
+        "headings": [{ "heading": "January 2, 2024", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 12
+      },
+      "Root Note.md": {
+        "tags": ["#misc"],
+        "links": [],
+        "headings": [{ "heading": "Root Note", "level": 1, "line": 1 }],
+        "frontmatter": {},
+        "wordCount": 12
+      }
+    },
+    "resolvedLinks": {
+      "react/React Hooks.md": {
+        "react/React Basics.md": 1
+      },
+      "golf/Driver Tips.md": {
+        "golf/Golf Swing Basics.md": 1
+      },
+      "daily/2024-01-02.md": {
+        "react/React Basics.md": 1,
+        "golf/Golf Swing Basics.md": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-ai-recall",
+  "name": "AI Recall",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "AI-powered spaced repetition that helps you recall and connect your notes",
+  "author": "zeroliu",
+  "authorUrl": "https://github.com/zeroliu",
+  "isDesktopOnly": false
+}

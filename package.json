@@ -1,0 +1,41 @@
+{
+  "name": "obsidian-ai-recall",
+  "version": "0.1.0",
+  "description": "AI-powered spaced repetition for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome lint ./src",
+    "format": "biome format ./src --write",
+    "check": "biome check ./src",
+    "typecheck": "tsc --noEmit",
+    "export-fixture": "tsx scripts/export-vault-fixture.ts"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "ai",
+    "spaced-repetition",
+    "recall"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.2",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.1",
+    "obsidian": "^1.7.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1"
+  }
+}
