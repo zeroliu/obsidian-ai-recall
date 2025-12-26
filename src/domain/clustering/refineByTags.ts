@@ -29,6 +29,7 @@ export function refineByTags(
       refined.push({
         ...cluster,
         dominantTags: [],
+        reasons: [...cluster.reasons, 'No dominant tags found'],
       });
       continue;
     }
@@ -43,9 +44,11 @@ export function refineByTags(
 
     if (significantGroups.length <= 1) {
       // Single dominant group or no significant groups, keep cluster with tags
+      const tagList = dominantTags.slice(0, 3).join(', ');
       refined.push({
         ...cluster,
         dominantTags,
+        reasons: [...cluster.reasons, `Dominant tags: ${tagList}`],
       });
       continue;
     }
@@ -60,6 +63,10 @@ export function refineByTags(
           candidateNames: [
             ...cluster.candidateNames,
             formatTagAsCandidateName(tag),
+          ],
+          reasons: [
+            ...cluster.reasons,
+            `Split by tag: ${tag} (${noteIds.length} notes)`,
           ],
         })
       );
@@ -76,6 +83,10 @@ export function refineByTags(
           folderPath: cluster.folderPath,
           dominantTags: [],
           candidateNames: [...cluster.candidateNames, 'Other'],
+          reasons: [
+            ...cluster.reasons,
+            `Orphaned notes without dominant tags (${orphans.length} notes)`,
+          ],
         })
       );
     }

@@ -43,13 +43,13 @@ export function mergeRelatedClusters(
   mergePairs.sort((a, b) => b[2] - a[2]);
 
   // Perform merges
-  for (const [i, j] of mergePairs) {
+  for (const [i, j, overlap] of mergePairs) {
     if (merged.has(i) || merged.has(j)) {
       continue;
     }
 
     // Merge clusters i and j
-    const mergedCluster = mergeTwoClusters(clusters[i], clusters[j]);
+    const mergedCluster = mergeTwoClusters(clusters[i], clusters[j], overlap);
 
     // Check if merged cluster would be too large
     if (mergedCluster.noteIds.length <= config.maxClusterSize) {
@@ -85,7 +85,7 @@ export function areSimilarSize(a: Cluster, b: Cluster): boolean {
 /**
  * Merge two clusters into one
  */
-export function mergeTwoClusters(a: Cluster, b: Cluster): Cluster {
+export function mergeTwoClusters(a: Cluster, b: Cluster, overlap?: number): Cluster {
   // Combine note IDs (deduplicate just in case)
   const noteIds = [...new Set([...a.noteIds, ...b.noteIds])];
 
@@ -104,6 +104,13 @@ export function mergeTwoClusters(a: Cluster, b: Cluster): Cluster {
     (a.internalLinkDensity * a.noteIds.length + b.internalLinkDensity * b.noteIds.length) /
     totalSize;
 
+  // Combine reasons and add merge reason
+  const combinedReasons = [...new Set([...a.reasons, ...b.reasons])];
+  const overlapPct = overlap !== undefined ? `${(overlap * 100).toFixed(0)}%` : 'high';
+  combinedReasons.push(
+    `Merged clusters due to link overlap (${overlapPct}): ${a.noteIds.length} + ${b.noteIds.length} notes`
+  );
+
   return createCluster({
     id: generateClusterId(),
     noteIds,
@@ -111,6 +118,7 @@ export function mergeTwoClusters(a: Cluster, b: Cluster): Cluster {
     candidateNames,
     folderPath,
     internalLinkDensity: avgDensity,
+    reasons: combinedReasons,
   });
 }
 

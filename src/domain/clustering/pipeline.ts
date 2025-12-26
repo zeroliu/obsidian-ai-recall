@@ -2,12 +2,20 @@ import type { FileInfo } from '@/ports/IVaultProvider';
 import type { FileMetadata, ResolvedLinks } from '@/ports/IMetadataProvider';
 import type { Cluster, ClusteringConfig } from './types';
 import { DEFAULT_CLUSTERING_CONFIG } from './types';
+import { filterExcludedPaths } from './filterFiles';
 import { clusterByFolder } from './clusterByFolder';
 import { refineByTags } from './refineByTags';
 import { analyzeLinks } from './analyzeLinks';
+import { splitByLinkCommunities } from './splitByLinkCommunities';
 import { mergeRelatedClusters } from './mergeRelatedClusters';
 import { groupByTitleKeywords } from './groupByTitleKeywords';
 import { normalizeClusterSizes } from './normalizeClusterSizes';
+import {
+  preprocessSpecialNotes,
+  assignStubNotesToClusters,
+  createTemplatesCluster,
+  type SpecialNotesConfig,
+} from './handleSpecialNotes';
 
 /**
  * Input for the clustering pipeline
@@ -42,12 +50,16 @@ export interface PipelineStats {
  * Run the complete clustering pipeline
  *
  * The pipeline executes the following steps:
+ * 0. Preprocess: Separate stub/template notes
  * 1. Group notes by folder (initial clustering)
  * 2. Refine clusters by dominant tags
  * 3. Analyze link density within clusters
+ * 3.5. Split large low-density clusters by link communities
  * 4. Merge highly-connected clusters
  * 5. Further refine by title keywords
  * 6. Normalize cluster sizes (split large, merge small)
+ * 7. Assign stub notes back to clusters
+ * 8. Add template cluster if applicable
  *
  * @param input - Pipeline input containing files, metadata, and config
  * @returns Pipeline result with clusters and statistics
@@ -58,13 +70,38 @@ export function runClusteringPipeline(input: PipelineInput): PipelineResult {
     ...input.config,
   };
 
-  const { files, metadata, resolvedLinks } = input;
+  const { metadata, resolvedLinks } = input;
+
+  // Filter excluded paths before clustering
+  const filteredFiles = filterExcludedPaths(input.files, config);
 
   // Create file map for quick lookups
   const fileMap = new Map<string, FileInfo>();
-  for (const file of files) {
+  for (const file of filteredFiles) {
     fileMap.set(file.path, file);
   }
+
+  // Step 0: Preprocess - separate stub and template notes
+  const specialNotesConfig: SpecialNotesConfig = {
+    stubWordThreshold: config.stubWordThreshold,
+    templatePatterns: [
+      /^template/i,
+      /template$/i,
+      /^_template/i,
+      /\.template$/i,
+      /\/templates?\//i,
+    ],
+    excludeTemplates: config.excludeTemplates,
+  };
+
+  const { regularFiles, stubFiles, templateFiles } = preprocessSpecialNotes(
+    filteredFiles,
+    metadata,
+    specialNotesConfig
+  );
+
+  // Use regular files for main clustering
+  const files = regularFiles;
 
   // Step 1: Initial clustering by folder
   let clusters = clusterByFolder(files, config);
@@ -75,6 +112,9 @@ export function runClusteringPipeline(input: PipelineInput): PipelineResult {
   // Step 3: Analyze link density
   clusters = analyzeLinks(clusters, resolvedLinks, config);
 
+  // Step 3.5: Split large low-density clusters by link communities
+  clusters = splitByLinkCommunities(clusters, resolvedLinks, metadata, config);
+
   // Step 4: Merge related clusters based on links
   clusters = mergeRelatedClusters(clusters, resolvedLinks, config);
 
@@ -83,6 +123,27 @@ export function runClusteringPipeline(input: PipelineInput): PipelineResult {
 
   // Step 6: Normalize cluster sizes
   clusters = normalizeClusterSizes(clusters, resolvedLinks, config);
+
+  // Step 7: Assign stub notes back to clusters
+  if (stubFiles.length > 0) {
+    clusters = assignStubNotesToClusters(
+      stubFiles.map((f) => f.path),
+      clusters,
+      resolvedLinks,
+      metadata
+    );
+  }
+
+  // Step 8: Add template cluster if applicable
+  if (templateFiles.length > 0 && !config.excludeTemplates) {
+    const templateCluster = createTemplatesCluster(
+      templateFiles.map((f) => f.path),
+      ''
+    );
+    if (templateCluster) {
+      clusters.push(templateCluster);
+    }
+  }
 
   // Calculate statistics
   const stats = calculateStats(clusters);

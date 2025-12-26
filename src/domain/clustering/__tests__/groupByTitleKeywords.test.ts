@@ -7,6 +7,7 @@ import {
   segmentCJK,
   extractEnglishKeywords,
   calculateKeywordScores,
+  filterCJKStopWords,
 } from '../groupByTitleKeywords';
 import { createCluster, DEFAULT_CLUSTERING_CONFIG, type ClusteringConfig } from '../types';
 import type { FileInfo } from '@/ports/IVaultProvider';
@@ -263,5 +264,86 @@ describe('calculateKeywordScores', () => {
     // All keywords appear only once, so scores are 0
     expect(scores.get('react')).toBe(0);
     expect(scores.get('hooks')).toBe(0);
+  });
+});
+
+describe('filterCJKStopWords', () => {
+  it('should filter Chinese stop words', () => {
+    const words = ['我', '的', '学习', '笔记', '是', '很', '好'];
+    const filtered = filterCJKStopWords(words, 'zh');
+    expect(filtered).toContain('学习');
+    expect(filtered).toContain('笔记');
+    expect(filtered).toContain('好');
+    expect(filtered).not.toContain('的');
+    expect(filtered).not.toContain('是');
+    expect(filtered).not.toContain('我');
+    expect(filtered).not.toContain('很');
+  });
+
+  it('should filter Japanese stop words', () => {
+    const words = ['の', 'は', 'プログラミング', '入門', 'です'];
+    const filtered = filterCJKStopWords(words, 'ja');
+    expect(filtered).toContain('プログラミング');
+    expect(filtered).toContain('入門');
+    expect(filtered).not.toContain('の');
+    expect(filtered).not.toContain('は');
+    expect(filtered).not.toContain('です');
+  });
+
+  it('should filter Korean stop words', () => {
+    const words = ['은', '한국어', '가', '테스트', '를'];
+    const filtered = filterCJKStopWords(words, 'ko');
+    expect(filtered).toContain('한국어');
+    expect(filtered).toContain('테스트');
+    expect(filtered).not.toContain('은');
+    expect(filtered).not.toContain('가');
+    expect(filtered).not.toContain('를');
+  });
+
+  it('should return words unchanged for non-CJK languages', () => {
+    const words = ['hello', 'world'];
+    expect(filterCJKStopWords(words, 'en')).toEqual(words);
+    expect(filterCJKStopWords(words, 'mixed')).toEqual(words);
+  });
+
+  it('should handle empty array', () => {
+    expect(filterCJKStopWords([], 'zh')).toEqual([]);
+  });
+});
+
+describe('extractTitleKeywords - mixed language', () => {
+  it('should extract both English and CJK keywords from mixed titles', () => {
+    const keywords = extractTitleKeywords('Python机器学习');
+    expect(keywords).toContain('python');
+    // Should have CJK keywords from segmentation
+    expect(keywords.some((k) => /[\u4e00-\u9fff]/.test(k))).toBe(true);
+  });
+
+  it('should extract keywords from "React 入门教程"', () => {
+    const keywords = extractTitleKeywords('React 入门教程');
+    expect(keywords).toContain('react');
+    // Should have CJK keywords
+    expect(keywords.some((k) => /[\u4e00-\u9fff]/.test(k))).toBe(true);
+  });
+
+  it('should filter stop words from mixed language titles', () => {
+    // "我的Python笔记" = "My Python notes"
+    const keywords = extractTitleKeywords('我的Python笔记');
+    expect(keywords).toContain('python');
+    // Should not contain stop words like 的
+    expect(keywords).not.toContain('的');
+  });
+});
+
+describe('extractTitleKeywords - CJK stop word filtering', () => {
+  it('should filter stop words from Chinese titles', () => {
+    // "我的笔记是很好的" = "My notes are very good"
+    const keywords = extractTitleKeywords('学习的笔记');
+    expect(keywords).not.toContain('的');
+  });
+
+  it('should keep meaningful words after filtering', () => {
+    const keywords = extractTitleKeywords('学习笔记');
+    expect(keywords.length).toBeGreaterThan(0);
   });
 });

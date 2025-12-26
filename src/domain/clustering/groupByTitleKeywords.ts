@@ -7,6 +7,26 @@ import { createCluster, type Cluster, type ClusteringConfig } from './types';
 export type Language = 'en' | 'zh' | 'ja' | 'ko' | 'mixed';
 
 /**
+ * CJK stop words - common particles, conjunctions, and function words
+ * that don't carry semantic meaning for clustering purposes
+ */
+const CJK_STOP_WORDS: Record<'zh' | 'ja' | 'ko', Set<string>> = {
+  zh: new Set([
+    '的', '是', '在', '了', '和', '有', '这', '那', '我', '他', '她', '它',
+    '们', '着', '过', '也', '就', '都', '而', '及', '与', '等', '或',
+    '不', '没', '很', '最', '更', '还', '把', '被', '让', '给',
+  ]),
+  ja: new Set([
+    'の', 'は', 'が', 'を', 'に', 'で', 'と', 'も', 'や', 'か',
+    'から', 'まで', 'です', 'ます', 'する', 'ある', 'いる',
+  ]),
+  ko: new Set([
+    '은', '는', '이', '가', '을', '를', '에', '의', '와', '과',
+    '로', '하다', '이다', '있다',
+  ]),
+};
+
+/**
  * Groups notes within a cluster by title keywords
  * Uses TF-IDF for English and Intl.Segmenter for CJK languages
  *
@@ -59,6 +79,10 @@ export function groupByTitleKeywords(
             folderPath: cluster.folderPath,
             dominantTags: cluster.dominantTags,
             candidateNames: [...cluster.candidateNames, formatKeywordAsName(keyword)],
+            reasons: [
+              ...cluster.reasons,
+              `Split by title keyword: '${keyword}' (${noteIds.length} notes)`,
+            ],
           })
         );
       }
@@ -73,6 +97,10 @@ export function groupByTitleKeywords(
             folderPath: cluster.folderPath,
             dominantTags: cluster.dominantTags,
             candidateNames: [...cluster.candidateNames, 'Other'],
+            reasons: [
+              ...cluster.reasons,
+              `Notes without matching title keywords (${orphans.length} notes)`,
+            ],
           })
         );
       }
@@ -88,12 +116,21 @@ export function groupByTitleKeywords(
 /**
  * Extract keywords from a title
  * Uses Intl.Segmenter for CJK, simple tokenization for English
+ * Handles mixed language titles by extracting from both portions
  */
 export function extractTitleKeywords(title: string): string[] {
   const lang = detectLanguage(title);
 
+  if (lang === 'mixed') {
+    // Extract from BOTH portions, dedupe
+    const cjkLang = detectCJKLanguage(title);
+    const cjkKeywords = filterCJKStopWords(segmentCJK(title, cjkLang), cjkLang);
+    const englishKeywords = extractEnglishKeywords(title);
+    return [...new Set([...cjkKeywords, ...englishKeywords])];
+  }
+
   if (isCJK(lang)) {
-    return segmentCJK(title, lang);
+    return filterCJKStopWords(segmentCJK(title, lang), lang);
   }
 
   return extractEnglishKeywords(title);
@@ -248,6 +285,17 @@ function fallbackCJKSegmentation(text: string): string[] {
  */
 function isPunctuation(str: string): boolean {
   return /^[\s\p{P}]+$/u.test(str);
+}
+
+/**
+ * Filter out CJK stop words from a list of words
+ */
+export function filterCJKStopWords(words: string[], lang: Language): string[] {
+  if (lang !== 'zh' && lang !== 'ja' && lang !== 'ko') {
+    return words;
+  }
+  const stopWords = CJK_STOP_WORDS[lang];
+  return words.filter((word) => !stopWords.has(word));
 }
 
 /**

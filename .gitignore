@@ -27,4 +27,4 @@ npm-debug.log*
 .env.local
 
 # Personal vault fixtures (contain personal data)
-src/test/fixtures/zeroliu-vault.json
+src/test/fixtures/zeroliu*

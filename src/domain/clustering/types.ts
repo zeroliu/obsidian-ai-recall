@@ -19,6 +19,8 @@ export interface Cluster {
   internalLinkDensity: number;
   /** Timestamp when cluster was created */
   createdAt: number;
+  /** Reasons explaining why notes are clustered together */
+  reasons: string[];
 }
 
 /**
@@ -37,6 +39,16 @@ export interface ClusteringConfig {
   dominantTagThreshold: number;
   /** Overlap threshold for merging clusters (default: 0.3) */
   mergeOverlapThreshold: number;
+  /** Glob patterns for paths to exclude from clustering (default: []) */
+  excludePaths: string[];
+  /** Minimum word count to not be considered a stub note (default: 50) */
+  stubWordThreshold: number;
+  /** Whether to exclude template notes from clustering (default: true) */
+  excludeTemplates: boolean;
+  /** Link density threshold for splitting clusters (default: 0.15) */
+  linkSplitDensityThreshold: number;
+  /** Minimum cluster size to consider for link-based splitting (default: 50) */
+  minSizeForLinkSplit: number;
 }
 
 /**
@@ -49,6 +61,11 @@ export const DEFAULT_CLUSTERING_CONFIG: ClusteringConfig = {
   sampleSize: 50,
   dominantTagThreshold: 0.3,
   mergeOverlapThreshold: 0.3,
+  excludePaths: [],
+  stubWordThreshold: 50,
+  excludeTemplates: true,
+  linkSplitDensityThreshold: 0.15,
+  minSizeForLinkSplit: 50,
 };
 
 /**
@@ -75,6 +92,7 @@ export function createCluster(partial: Partial<Cluster> & { noteIds: string[] })
     folderPath: partial.folderPath ?? '',
     internalLinkDensity: partial.internalLinkDensity ?? 0,
     createdAt: partial.createdAt ?? Date.now(),
+    reasons: partial.reasons ?? [],
   };
 }
 

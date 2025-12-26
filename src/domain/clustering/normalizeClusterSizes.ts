@@ -83,6 +83,10 @@ export function splitLargeCluster(
           `Part ${i + 1}`,
         ],
         internalLinkDensity: density,
+        reasons: [
+          ...cluster.reasons,
+          `Split oversized cluster (${cluster.noteIds.length} notes) into ${numClusters} parts`,
+        ],
       })
     );
   }
@@ -223,6 +227,12 @@ function mergeClusters(a: Cluster, b: Cluster): Cluster {
   // Use common folder path
   const folderPath = findCommonPath(a.folderPath, b.folderPath);
 
+  // Combine reasons and add merge reason
+  const combinedReasons = [...new Set([...a.reasons, ...b.reasons])];
+  combinedReasons.push(
+    `Merged undersized clusters: ${a.noteIds.length} + ${b.noteIds.length} notes`
+  );
+
   return createCluster({
     id: generateClusterId(),
     noteIds,
@@ -230,6 +240,7 @@ function mergeClusters(a: Cluster, b: Cluster): Cluster {
     candidateNames,
     folderPath,
     internalLinkDensity: avgDensity,
+    reasons: combinedReasons,
   });
 }
 

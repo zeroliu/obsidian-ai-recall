@@ -392,6 +392,49 @@ For each cluster:
 
 **Output**: Named concepts with metadata
 
+### Stage 3.5: LLM Cluster Refinement
+
+Extend LLM concept naming to also identify misfits and synonyms:
+
+**Synonym/Alias Detection**
+
+Problem: "FW" and "Firework" notes are separated despite referring to the same concept.
+
+Solution: LLM identifies synonym patterns and suggests merges. The LLM has semantic understanding to catch abbreviations, alternative names, and conceptual synonyms.
+
+**Misfit Note Identification**
+
+1. Identify notes that don't semantically belong in their assigned cluster
+2. Suggest moving misfits to better-fitting clusters
+3. Handle mixed semantic clusters (e.g., "design" → UI design vs system design)
+
+**Prompt addition**:
+
+```
+For each cluster, also identify:
+1. Synonym patterns (abbreviations, alternative names) to merge with other clusters
+2. Notes that DON'T fit semantically
+
+Return:
+- synonymPatterns: [{pattern, matchesCluster, confidence}]
+- misfitNotes: [{noteTitle, reason, suggestedTags}]
+```
+
+Note: Use `suggestedTags` instead of `suggestedCluster` to avoid sending all cluster names in context. Map tags → clusters locally after LLM response.
+
+**Batch strategy**:
+
+- Send 15-20 clusters per LLM call
+- Include up to 5 representative note titles per cluster
+- Modern models support large context; prioritize thoroughness over token savings
+
+**Edge Cases (LLM-Handled)**:
+
+| Case                                | Handling                               |
+| ----------------------------------- | -------------------------------------- |
+| Synonym variations (FW, Firework)   | LLM identifies and suggests merges     |
+| Mixed semantic clusters (design)    | LLM identifies misfits, suggests moves |
+
 ### Stage 4: User Concept Selection
 
 Present top 50-100 concepts ordered by:
