@@ -1,0 +1,57 @@
+{
+  "stats": {
+    "totalClusters": 1,
+    "totalConcepts": 1,
+    "quizzableConceptCount": 1,
+    "nonQuizzableConceptCount": 0,
+    "namingBatches": 1,
+    "refinementBatches": 1,
+    "tokenUsage": {
+      "inputTokens": 1067,
+      "outputTokens": 126
+    },
+    "synonymMergesApplied": 0,
+    "misfitNotesRemoved": 0
+  },
+  "quizzableConcepts": [
+    {
+      "id": "concept-1766742870653-djjn4r",
+      "name": "React Hooks",
+      "noteCount": 6,
+      "quizzabilityScore": 0.9,
+      "originalClusterIds": [
+        "cluster-1766742868475-g21iqr"
+      ],
+      "noteIds": [
+        "react/React Basics.md",
+        "react/React Hooks.md",
+        "react/useState Deep Dive.md",
+        "react/useEffect Guide.md",
+        "react/Context API.md",
+        "react/Performance Optimization.md"
+      ]
+    }
+  ],
+  "nonQuizzableConcepts": [],
+  "misfitNotes": [],
+  "allConcepts": [
+    {
+      "id": "concept-1766742870653-djjn4r",
+      "name": "React Hooks",
+      "noteCount": 6,
+      "quizzabilityScore": 0.9,
+      "isQuizzable": true,
+      "originalClusterIds": [
+        "cluster-1766742868475-g21iqr"
+      ],
+      "noteIds": [
+        "react/React Basics.md",
+        "react/React Hooks.md",
+        "react/useState Deep Dive.md",
+        "react/useEffect Guide.md",
+        "react/Context API.md",
+        "react/Performance Optimization.md"
+      ]
+    }
+  ]
+}
