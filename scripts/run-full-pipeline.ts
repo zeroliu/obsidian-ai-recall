@@ -17,7 +17,7 @@ import {AnthropicLLMAdapter} from '../src/adapters/anthropic/AnthropicLLMAdapter
 import {EmbeddingOrchestrator} from '../src/domain/embedding/embedBatch';
 import {ClusteringV2Pipeline} from '../src/domain/clustering-v2/pipeline';
 import {runLLMPipeline} from '../src/domain/llm/pipeline';
-import type {Cluster} from '../src/domain/clustering/types';
+import type {Cluster} from '../src/domain/clustering-v2/types';
 import type {TrackedConcept, MisfitNote} from '../src/domain/llm/types';
 import {getArg, readVault} from './lib/vault-helpers';
 

@@ -1,5 +1,6 @@
 // Types
 export type {
+	Cluster,
 	UMAPConfig,
 	HDBSCANConfig,
 	ClusterAssignment,
@@ -11,6 +12,8 @@ export type {
 } from './types';
 
 export {
+	createCluster,
+	generateClusterId,
 	DEFAULT_UMAP_CONFIG,
 	DEFAULT_HDBSCAN_CONFIG,
 	DEFAULT_CLUSTERING_V2_CONFIG,

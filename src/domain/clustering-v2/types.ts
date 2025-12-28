@@ -1,4 +1,47 @@
-import type { Cluster } from '@/domain/clustering/types';
+/**
+ * A cluster of related notes
+ */
+export interface Cluster {
+	/** Unique identifier for the cluster */
+	id: string;
+	/** Candidate names for this cluster (for LLM naming) */
+	candidateNames: string[];
+	/** File paths of notes in this cluster */
+	noteIds: string[];
+	/** Most common tags in this cluster */
+	dominantTags: string[];
+	/** Common folder path for notes in cluster */
+	folderPath: string;
+	/** Ratio of internal links to possible links (0-1) */
+	internalLinkDensity: number;
+	/** Timestamp when cluster was created */
+	createdAt: number;
+	/** Reasons explaining why notes are clustered together */
+	reasons: string[];
+}
+
+/**
+ * Helper to create a cluster with defaults
+ */
+export function createCluster(partial: Partial<Cluster> & { noteIds: string[] }): Cluster {
+	return {
+		id: partial.id ?? `cluster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+		candidateNames: partial.candidateNames ?? [],
+		noteIds: partial.noteIds,
+		dominantTags: partial.dominantTags ?? [],
+		folderPath: partial.folderPath ?? '',
+		internalLinkDensity: partial.internalLinkDensity ?? 0,
+		createdAt: partial.createdAt ?? Date.now(),
+		reasons: partial.reasons ?? [],
+	};
+}
+
+/**
+ * Generate a unique cluster ID
+ */
+export function generateClusterId(): string {
+	return `cluster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 /**
  * UMAP dimensionality reduction configuration

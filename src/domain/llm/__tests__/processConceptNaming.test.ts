@@ -1,4 +1,4 @@
-import type { Cluster } from '@/domain/clustering/types';
+import type { Cluster } from '@/domain/clustering-v2/types';
 import { describe, expect, it } from 'vitest';
 import {
 	createConceptFromResult,
