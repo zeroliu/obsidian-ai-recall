@@ -33,7 +33,7 @@ export class AnthropicLLMAdapter implements ILLMProvider {
   private config: LLMConfig;
 
   constructor(apiKey: string, config?: Partial<LLMConfig>) {
-    this.client = new Anthropic({ apiKey });
+    this.client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
     this.config = { ...DEFAULT_LLM_CONFIG, ...config, apiKey };
   }
 
@@ -59,7 +59,7 @@ export class AnthropicLLMAdapter implements ILLMProvider {
 
     // Update API key if provided
     if (config.apiKey) {
-      this.client = new Anthropic({ apiKey: config.apiKey });
+      this.client = new Anthropic({ apiKey: config.apiKey, dangerouslyAllowBrowser: true });
     }
   }
 
