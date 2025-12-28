@@ -91,14 +91,18 @@ describe('Clustering Pipeline Integration', () => {
 			const input = await createPipelineInput(mixedVault as VaultFixture);
 			const result = runClusteringPipeline(input);
 
-			expect(result.stats.totalNotes).toBe(8);
+			// Total notes in clusters + stubs should equal all notes
+			expect(result.stats.totalNotes + result.stats.stubCount).toBe(8);
 
 			// Should have multiple clusters due to different topics
 			expect(result.clusters.length).toBeGreaterThan(0);
 
-			// Check that notes are grouped by topic
+			// Check that clustered notes are unique
 			const allNoteIds = result.clusters.flatMap((c) => c.noteIds);
-			expect(new Set(allNoteIds).size).toBe(8); // All notes unique
+			expect(new Set(allNoteIds).size).toBe(result.stats.totalNotes);
+
+			// Stubs should be returned separately
+			expect(result.stubs.length).toBe(result.stats.stubCount);
 		});
 
 		it('should separate daily notes from topic notes', async () => {
