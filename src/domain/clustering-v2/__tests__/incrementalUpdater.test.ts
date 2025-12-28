@@ -26,7 +26,7 @@ describe('incrementalUpdater', () => {
 
 		it('should detect new notes', () => {
 			const previousState: ClusteringState = {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map([['note1.md', 'hash1']]),
@@ -46,7 +46,7 @@ describe('incrementalUpdater', () => {
 
 		it('should detect modified notes', () => {
 			const previousState: ClusteringState = {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map([['note1.md', 'hash1']]),
@@ -63,7 +63,7 @@ describe('incrementalUpdater', () => {
 
 		it('should detect deleted notes', () => {
 			const previousState: ClusteringState = {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map([
@@ -83,7 +83,7 @@ describe('incrementalUpdater', () => {
 
 		it('should calculate change percentage correctly', () => {
 			const previousState: ClusteringState = {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map([
@@ -109,7 +109,7 @@ describe('incrementalUpdater', () => {
 
 		it('should recommend incremental when below threshold', () => {
 			const previousState: ClusteringState = {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map(Array.from({ length: 100 }, (_, i) => [`note${i}.md`, `hash${i}`])),
@@ -130,7 +130,7 @@ describe('incrementalUpdater', () => {
 
 		it('should recommend full clustering when above threshold', () => {
 			const previousState: ClusteringState = {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map(Array.from({ length: 100 }, (_, i) => [`note${i}.md`, `hash${i}`])),
@@ -352,17 +352,13 @@ describe('incrementalUpdater', () => {
 				},
 			];
 
-			const reducedEmbeddings = new Map([
-				['note1.md', [0.5, 0.5]],
-				['note2.md', [0.3, 0.7]],
-			]);
-
-			const state = updateClusteringState(noteHashes, clusters, reducedEmbeddings);
+			const state = updateClusteringState(noteHashes, clusters);
 
 			expect(state.noteHashes.get('note1.md')).toBe('hash1');
 			expect(state.noteHashes.get('note2.md')).toBe('hash2');
 			expect(state.centroids.get('cluster-1')).toEqual([1, 0]);
-			expect(state.reducedEmbeddings.get('note1.md')).toEqual([0.5, 0.5]);
+			expect(state.clusters.length).toBe(1);
+			expect(state.clusters[0].id).toBe('cluster-1');
 			expect(state.lastFullClusteringAt).toBeGreaterThan(0);
 		});
 	});

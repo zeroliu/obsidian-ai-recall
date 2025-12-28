@@ -81,12 +81,8 @@ export interface ClusteringV2Config {
 	representativeCount: number;
 	/** Minimum tag frequency to be considered dominant (default: 0.3) */
 	dominantTagThreshold: number;
-	/** Glob patterns for paths to exclude from clustering */
-	excludePaths: string[];
-	/** Minimum word count to not be considered a stub note (default: 50) */
-	stubWordThreshold: number;
-	/** Whether to exclude template notes from clustering (default: true) */
-	excludeTemplates: boolean;
+	/** Minimum cosine similarity for incremental note assignment (default: 0.3) */
+	minAssignmentSimilarity: number;
 }
 
 /**
@@ -99,9 +95,7 @@ export const DEFAULT_CLUSTERING_V2_CONFIG: ClusteringV2Config = {
 	minNotesForClustering: 10,
 	representativeCount: 5,
 	dominantTagThreshold: 0.3,
-	excludePaths: [],
-	stubWordThreshold: 50,
-	excludeTemplates: true,
+	minAssignmentSimilarity: 0.3,
 };
 
 /**
@@ -146,9 +140,9 @@ export interface ClusteringV2Result {
  * State saved between clustering runs for incremental updates
  */
 export interface ClusteringState {
-	/** UMAP-reduced embeddings from last full run */
-	reducedEmbeddings: Map<string, number[]>;
-	/** Current cluster centroids */
+	/** Current clusters with their noteIds (needed for incremental updates) */
+	clusters: EmbeddingCluster[];
+	/** Current cluster centroids (in original embedding space for cosine similarity) */
 	centroids: Map<string, number[]>;
 	/** Last full clustering timestamp */
 	lastFullClusteringAt: number;

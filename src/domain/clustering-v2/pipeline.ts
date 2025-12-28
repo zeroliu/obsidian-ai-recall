@@ -111,12 +111,6 @@ export class ClusteringV2Pipeline {
 		// Step 1: UMAP dimensionality reduction
 		const { reducedEmbeddings, notePaths } = await this.umapReducer.fit(embeddings);
 
-		// Create reduced embedding map
-		const reducedMap = new Map<string, number[]>();
-		for (let i = 0; i < notePaths.length; i++) {
-			reducedMap.set(notePaths[i], reducedEmbeddings[i]);
-		}
-
 		// Step 2: HDBSCAN clustering
 		const hdbscanResult = this.hdbscanClusterer.cluster(reducedEmbeddings);
 
@@ -142,7 +136,7 @@ export class ClusteringV2Pipeline {
 		const noiseNotes = hdbscanResult.noiseIndices.map((i) => notePaths[i]);
 
 		// Build state for future incremental updates
-		const state = updateClusteringState(noteHashes, clusters, reducedMap);
+		const state = updateClusteringState(noteHashes, clusters);
 
 		return {
 			result: {
@@ -172,7 +166,7 @@ export class ClusteringV2Pipeline {
 			throw new Error('Cannot run incremental without previous state');
 		}
 
-		// Get embeddings for new and modified notes
+		// Get embeddings for new and modified notes (in original high-dim space)
 		const changedPaths = new Set([...changes.newNotes, ...changes.modifiedNotes]);
 		const changedEmbeddings = input.embeddedNotes
 			.filter((note) => changedPaths.has(note.notePath))
@@ -181,37 +175,19 @@ export class ClusteringV2Pipeline {
 				embedding: note.embedding,
 			}));
 
-		// Reconstruct previous clusters from state
-		// Note: In real usage, clusters would be persisted/reloaded
-		// For now, we need to handle this case gracefully
-		const previousClusters = this.reconstructClustersFromState(
-			input.previousState,
-			input.embeddedNotes,
-			input.noteTags,
-			input.resolvedLinks,
-			input.files,
-			config,
-		);
+		// Use clusters from previous state (centroids are in original embedding space)
+		const previousClusters = input.previousState.clusters;
 
-		// Apply incremental updates
+		// Apply incremental updates using cosine similarity on original embeddings
 		const updateResult = applyIncrementalUpdate(
 			previousClusters,
 			changes,
 			changedEmbeddings,
-			0.3, // minSimilarity
+			config.minAssignmentSimilarity,
 		);
 
-		// Update state
-		const reducedMap = new Map(input.previousState.reducedEmbeddings);
-		// Transform new embeddings and add to map
-		if (changedEmbeddings.length > 0 && this.umapReducer.isFitted()) {
-			const { reducedEmbeddings, notePaths } = this.umapReducer.transform(changedEmbeddings);
-			for (let i = 0; i < notePaths.length; i++) {
-				reducedMap.set(notePaths[i], reducedEmbeddings[i]);
-			}
-		}
-
-		const state = updateClusteringState(noteHashes, updateResult.clusters, reducedMap);
+		// Update state with new clusters
+		const state = updateClusteringState(noteHashes, updateResult.clusters);
 
 		return {
 			result: {
@@ -442,47 +418,12 @@ export class ClusteringV2Pipeline {
 				},
 			},
 			state: {
-				reducedEmbeddings: new Map(),
+				clusters: [],
 				centroids: new Map(),
 				lastFullClusteringAt: Date.now(),
 				noteHashes: new Map(),
 			},
 		};
-	}
-
-	/**
-	 * Reconstruct clusters from previous state
-	 * This is a simplified version - in production, clusters would be persisted
-	 * Note: Additional parameters are kept for future expansion when clusters are fully persisted
-	 */
-	private reconstructClustersFromState(
-		state: ClusteringState,
-		_embeddedNotes: EmbeddedNote[],
-		_noteTags: Map<string, string[]>,
-		_resolvedLinks: ResolvedLinks,
-		_files: Map<string, FileInfo>,
-		_config: ClusteringV2Config,
-	): EmbeddingCluster[] {
-		// In a real implementation, clusters would be loaded from storage
-		// For now, we create placeholder clusters from centroids
-		const clusters: EmbeddingCluster[] = [];
-
-		for (const [clusterId, centroid] of state.centroids.entries()) {
-			clusters.push({
-				id: clusterId,
-				candidateNames: [],
-				noteIds: [],
-				dominantTags: [],
-				folderPath: '',
-				internalLinkDensity: 0,
-				createdAt: Date.now(),
-				reasons: ['Reconstructed from state'],
-				centroid,
-				representativeNotes: [],
-			});
-		}
-
-		return clusters;
 	}
 
 	/**

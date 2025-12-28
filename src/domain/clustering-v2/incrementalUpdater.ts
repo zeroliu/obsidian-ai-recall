@@ -243,7 +243,6 @@ export function applyIncrementalUpdate(
 export function updateClusteringState(
 	noteHashes: Map<string, string>,
 	clusters: EmbeddingCluster[],
-	reducedEmbeddings: Map<string, number[]>,
 ): ClusteringState {
 	const centroids = new Map<string, number[]>();
 	for (const cluster of clusters) {
@@ -251,7 +250,7 @@ export function updateClusteringState(
 	}
 
 	return {
-		reducedEmbeddings,
+		clusters: clusters.map((c) => ({ ...c })), // Deep copy clusters
 		centroids,
 		lastFullClusteringAt: Date.now(),
 		noteHashes: new Map(noteHashes),

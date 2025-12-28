@@ -114,7 +114,7 @@ describe('ClusteringV2Pipeline', () => {
 
 			expect(state.noteHashes.size).toBe(20);
 			expect(state.lastFullClusteringAt).toBeGreaterThan(0);
-			expect(state.reducedEmbeddings.size).toBeGreaterThan(0);
+			expect(Array.isArray(state.clusters)).toBe(true);
 		});
 	});
 
