@@ -70,5 +70,5 @@ The `src/domain/llm/` module refines clusters into quizzable concepts:
 - Always use absolute imports with `@/` prefix (e.g., `import { Foo } from '@/domain/foo'`)
 - Never use relative imports with `../` (use `@/` path alias instead)
 - Strict TypeScript with strict null checks
-- `noNonNullAssertion` is a warning (allowed but discouraged)
+- `noNonNullAssertion` is an error (never use `!` non-null assertions)
 - Never use `any` to get rid of type errors. Figure out the right type always.

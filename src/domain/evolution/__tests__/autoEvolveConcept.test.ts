@@ -42,12 +42,12 @@ describe('autoEvolveConcept', () => {
       expect(result.action).toBe('renamed');
       expect(result.wasModified).toBe(true);
       expect(result.concept).not.toBeNull();
-      expect(result.concept!.clusterId).toBe('new-cluster');
-      expect(result.concept!.canonicalName).toBe('Concept concept-1');
-      expect(result.concept!.evolutionHistory).toHaveLength(1);
-      expect(result.concept!.evolutionHistory[0].type).toBe('rename');
-      expect(result.concept!.evolutionHistory[0].fromCluster).toBe('old-cluster');
-      expect(result.concept!.evolutionHistory[0].toCluster).toBe('new-cluster');
+      expect(result.concept?.clusterId).toBe('new-cluster');
+      expect(result.concept?.canonicalName).toBe('Concept concept-1');
+      expect(result.concept?.evolutionHistory).toHaveLength(1);
+      expect(result.concept?.evolutionHistory[0].type).toBe('rename');
+      expect(result.concept?.evolutionHistory[0].fromCluster).toBe('old-cluster');
+      expect(result.concept?.evolutionHistory[0].toCluster).toBe('new-cluster');
     });
 
     it('should handle remap evolution - update clusterId, optionally update name', () => {
@@ -64,10 +64,10 @@ describe('autoEvolveConcept', () => {
       expect(result.action).toBe('remapped');
       expect(result.wasModified).toBe(true);
       expect(result.concept).not.toBeNull();
-      expect(result.concept!.clusterId).toBe('new-cluster');
-      expect(result.concept!.canonicalName).toBe('New Concept Name');
-      expect(result.concept!.evolutionHistory).toHaveLength(1);
-      expect(result.concept!.evolutionHistory[0].type).toBe('remap');
+      expect(result.concept?.clusterId).toBe('new-cluster');
+      expect(result.concept?.canonicalName).toBe('New Concept Name');
+      expect(result.concept?.evolutionHistory).toHaveLength(1);
+      expect(result.concept?.evolutionHistory[0].type).toBe('remap');
     });
 
     it('should handle remap without new name - keep existing name', () => {
@@ -83,7 +83,7 @@ describe('autoEvolveConcept', () => {
 
       const result = autoEvolveConcept(concept, evolution);
 
-      expect(result.concept!.canonicalName).toBe('Original Name');
+      expect(result.concept?.canonicalName).toBe('Original Name');
     });
 
     it('should handle dissolved evolution - return null concept', () => {
@@ -140,9 +140,9 @@ describe('autoEvolveConcept', () => {
 
       const result = autoEvolveConcept(concept, evolution);
 
-      expect(result.concept!.evolutionHistory).toHaveLength(2);
-      expect(result.concept!.evolutionHistory[0]).toEqual(existingHistory[0]);
-      expect(result.concept!.evolutionHistory[1].fromCluster).toBe('old-cluster');
+      expect(result.concept?.evolutionHistory).toHaveLength(2);
+      expect(result.concept?.evolutionHistory[0]).toEqual(existingHistory[0]);
+      expect(result.concept?.evolutionHistory[1].fromCluster).toBe('old-cluster');
     });
 
     it('should update lastUpdated timestamp', () => {
@@ -161,9 +161,9 @@ describe('autoEvolveConcept', () => {
       const result = autoEvolveConcept(concept, evolution);
       const afterUpdate = Date.now();
 
-      expect(result.concept!.metadata.lastUpdated).toBeGreaterThanOrEqual(beforeUpdate);
-      expect(result.concept!.metadata.lastUpdated).toBeLessThanOrEqual(afterUpdate);
-      expect(result.concept!.metadata.createdAt).toBe(oldTimestamp);
+      expect(result.concept?.metadata.lastUpdated).toBeGreaterThanOrEqual(beforeUpdate);
+      expect(result.concept?.metadata.lastUpdated).toBeLessThanOrEqual(afterUpdate);
+      expect(result.concept?.metadata.createdAt).toBe(oldTimestamp);
     });
   });
 
@@ -186,7 +186,7 @@ describe('autoEvolveConcept', () => {
       expect(results).toHaveLength(3);
       expect(results[0].action).toBe('renamed');
       expect(results[1].action).toBe('remapped');
-      expect(results[1].concept!.canonicalName).toBe('Renamed Concept 2');
+      expect(results[1].concept?.canonicalName).toBe('Renamed Concept 2');
       expect(results[2].action).toBe('dissolved');
     });
 
