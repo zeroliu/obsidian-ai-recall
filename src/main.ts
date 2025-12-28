@@ -113,13 +113,7 @@ export default class AIRecallPlugin extends Plugin {
 
     try {
       const result = await orchestrator.run((progress) => {
-        const messages: Record<string, string> = {
-          reading: progress.message,
-          embedding: progress.message,
-          clustering: progress.message,
-          saving: progress.message,
-        };
-        statusNotice.setMessage(messages[progress.stage] || progress.message);
+        statusNotice.setMessage(progress.message);
       });
 
       // Hide status and show completion notice

@@ -70,10 +70,10 @@ export class ObsidianStorageAdapter implements IStorageAdapter {
     if (!exists) {
       return [];
     }
-    return this.collectKeys(this.basePath, '');
+    return this.collectKeys(this.basePath);
   }
 
-  private async collectKeys(dir: string, _prefix: string): Promise<string[]> {
+  private async collectKeys(dir: string): Promise<string[]> {
     const exists = await this.app.vault.adapter.exists(dir);
     if (!exists) {
       return [];
@@ -93,7 +93,7 @@ export class ObsidianStorageAdapter implements IStorageAdapter {
 
     // Process subdirectories recursively
     for (const folder of listing.folders) {
-      const subKeys = await this.collectKeys(folder, '');
+      const subKeys = await this.collectKeys(folder);
       keys.push(...subKeys);
     }
 

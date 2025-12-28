@@ -201,41 +201,26 @@ export class PipelineOrchestrator {
     let stubCount = 0;
 
     for (const file of nonExcludedFiles) {
-      const content = await this.vaultProvider.readFile(file.path);
+      // Get metadata first to check word count (avoids reading content for stubs)
+      const metadata = await this.metadataProvider.getFileMetadata(file.path);
 
-      // Filter stubs
-      if (this.isStubNote(content)) {
+      // Filter stubs using metadata wordCount
+      if (!metadata || metadata.wordCount < STUB_WORD_THRESHOLD) {
         stubCount++;
         continue;
       }
 
+      const content = await this.vaultProvider.readFile(file.path);
+
       files.set(file.path, file);
       contents.set(file.path, content);
-
-      // Get tags from metadata cache
-      const metadata = await this.metadataProvider.getFileMetadata(file.path);
-      if (metadata) {
-        noteTags.set(file.path, metadata.tags);
-      } else {
-        noteTags.set(file.path, []);
-      }
+      noteTags.set(file.path, metadata.tags);
     }
 
     // Get resolved links
     const resolvedLinks = await this.metadataProvider.getResolvedLinks();
 
     return { files, contents, noteTags, resolvedLinks, stubCount, excludedCount };
-  }
-
-  /**
-   * Check if a note is a stub (has too few words)
-   */
-  private isStubNote(content: string): boolean {
-    // Remove frontmatter and code blocks
-    const withoutFrontmatter = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
-    const withoutCode = withoutFrontmatter.replace(/```[\s\S]*?```/g, '');
-    const words = withoutCode.split(/\s+/).filter((w) => w.length > 0);
-    return words.length < STUB_WORD_THRESHOLD;
   }
 
   /**
