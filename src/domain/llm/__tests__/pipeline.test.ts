@@ -145,7 +145,10 @@ describe('LLM Pipeline', () => {
 
       fileMap = createFileMap(['react/hooks.md']);
       // Override to include grocery in titles
-      fileMap.get('react/hooks.md')!.basename = 'Grocery List';
+      const fileEntry = fileMap.get('react/hooks.md');
+      if (fileEntry) {
+        fileEntry.basename = 'Grocery List';
+      }
 
       const result = await runLLMPipeline({
         clusters,

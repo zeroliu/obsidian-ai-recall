@@ -223,7 +223,7 @@ describe('detectEvolution', () => {
       const found = findEvolutionForCluster('old-1', evolutions);
 
       expect(found).toBeDefined();
-      expect(found!.newClusterId).toBe('new-1');
+      expect(found?.newClusterId).toBe('new-1');
     });
 
     it('should return undefined for unknown cluster', () => {

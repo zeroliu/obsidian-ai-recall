@@ -109,8 +109,8 @@ describe('jaccardSimilarity', () => {
       const result = findBestMatch(target, candidates);
 
       expect(result).not.toBeNull();
-      expect(result!.id).toBe('high');
-      expect(result!.score).toBe(1);
+      expect(result?.id).toBe('high');
+      expect(result?.score).toBe(1);
     });
 
     it('should return null for empty candidates', () => {
@@ -131,8 +131,8 @@ describe('jaccardSimilarity', () => {
       const result = findBestMatch(target, candidates);
 
       expect(result).not.toBeNull();
-      expect(result!.id).toBe('first');
-      expect(result!.score).toBe(1);
+      expect(result?.id).toBe('first');
+      expect(result?.score).toBe(1);
     });
 
     it('should handle all zero scores', () => {
@@ -145,7 +145,7 @@ describe('jaccardSimilarity', () => {
       const result = findBestMatch(target, candidates);
 
       expect(result).not.toBeNull();
-      expect(result!.score).toBe(0);
+      expect(result?.score).toBe(0);
     });
 
     it('should work with complex objects', () => {
@@ -160,8 +160,8 @@ describe('jaccardSimilarity', () => {
       expect(result).not.toBeNull();
       // Target has 3, cluster-new has 4, intersection is 3
       // Union is 4, so Jaccard = 3/4 = 0.75
-      expect(result!.id).toBe('cluster-new');
-      expect(result!.score).toBe(0.75);
+      expect(result?.id).toBe('cluster-new');
+      expect(result?.score).toBe(0.75);
     });
   });
 });
