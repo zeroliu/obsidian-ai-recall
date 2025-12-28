@@ -129,7 +129,6 @@ export class ClusteringPipeline {
       originalEmbeddingMap,
       input.noteTags,
       input.resolvedLinks,
-      input.files,
       config,
     );
 
@@ -138,8 +137,8 @@ export class ClusteringPipeline {
     const originalNoiseCount = noiseNotes.length;
     let reassignedCount = 0;
 
-    // Step 5: Optional noise reassignment
-    if (config.noiseReassign.enabled && clusters.length > 0 && noiseNotes.length > 0) {
+    // Step 5: Noise reassignment (always runs)
+    if (clusters.length > 0 && noiseNotes.length > 0) {
       const reassignResult = reassignNoiseNotes(
         clusters,
         noiseNotes,
@@ -150,6 +149,9 @@ export class ClusteringPipeline {
       noiseNotes = reassignResult.remainingNoise;
       reassignedCount = reassignResult.reassignedCount;
     }
+
+    // Step 6: Calculate representative notes and candidate names (after noise reassignment)
+    clusters = this.computeRepresentativeNotes(clusters, originalEmbeddingMap, config, input.files);
 
     // Build state for future incremental updates
     const state = updateClusteringState(noteHashes, clusters);
@@ -163,12 +165,10 @@ export class ClusteringPipeline {
           clusterCount: clusters.length,
           noiseCount: noiseNotes.length,
           wasIncremental: false,
-          ...(config.noiseReassign.enabled && {
-            reassignment: {
-              originalNoiseCount,
-              reassignedCount,
-            },
-          }),
+          reassignment: {
+            originalNoiseCount,
+            reassignedCount,
+          },
         },
       },
       state,
@@ -235,7 +235,6 @@ export class ClusteringPipeline {
     embeddingMap: Map<string, number[]>,
     noteTags: Map<string, string[]>,
     resolvedLinks: ResolvedLinks,
-    files: Map<string, FileInfo>,
     config: ClusteringConfig,
   ): EmbeddingCluster[] {
     // Group notes by cluster label
@@ -256,29 +255,18 @@ export class ClusteringPipeline {
 
     for (const [label, noteIds] of clusterNotes.entries()) {
       // Get embeddings for this cluster
-      const clusterEmbeddings: Array<{ index: number; embedding: number[] }> = [];
-      for (let i = 0; i < noteIds.length; i++) {
-        const embedding = embeddingMap.get(noteIds[i]);
+      const clusterEmbeddings: number[][] = [];
+      for (const noteId of noteIds) {
+        const embedding = embeddingMap.get(noteId);
         if (embedding) {
-          clusterEmbeddings.push({ index: i, embedding });
+          clusterEmbeddings.push(embedding);
         }
       }
 
       if (clusterEmbeddings.length === 0) continue;
 
       // Compute centroid
-      const centroid = computeCentroid(clusterEmbeddings.map((e) => e.embedding));
-
-      // Select representative notes
-      const representativeIndices = selectRepresentatives(
-        clusterEmbeddings,
-        centroid,
-        config.representativeCount,
-      );
-      const representativeNotes = representativeIndices.map((i) => noteIds[i]);
-
-      // Extract candidate names from representative note titles
-      const candidateNames = this.extractCandidateNames(representativeNotes, files);
+      const centroid = computeCentroid(clusterEmbeddings);
 
       // Calculate dominant tags
       const dominantTags = this.calculateDominantTags(
@@ -295,7 +283,7 @@ export class ClusteringPipeline {
 
       clusters.push({
         id: generateEmbeddingClusterId(),
-        candidateNames,
+        candidateNames: [], // Will be populated after representative notes are computed
         noteIds,
         dominantTags,
         folderPath,
@@ -303,7 +291,7 @@ export class ClusteringPipeline {
         createdAt: Date.now(),
         reasons: [`Embedding-based cluster (label: ${label})`],
         centroid,
-        representativeNotes,
+        representativeNotes: [], // Will be computed after noise reassignment
       });
     }
 
@@ -421,6 +409,53 @@ export class ClusteringPipeline {
     if (possibleLinks === 0) return 0;
 
     return Math.min(1, internalLinks / possibleLinks);
+  }
+
+  /**
+   * Compute representative notes and candidate names for all clusters
+   * Called after noise reassignment to ensure final cluster membership is used
+   */
+  private computeRepresentativeNotes(
+    clusters: EmbeddingCluster[],
+    embeddingMap: Map<string, number[]>,
+    config: ClusteringConfig,
+    files: Map<string, FileInfo>,
+  ): EmbeddingCluster[] {
+    return clusters.map((cluster) => {
+      // Build embeddings with indices for selectRepresentatives
+      const clusterEmbeddings: Array<{ index: number; embedding: number[] }> = [];
+      for (let i = 0; i < cluster.noteIds.length; i++) {
+        const embedding = embeddingMap.get(cluster.noteIds[i]);
+        if (embedding) {
+          clusterEmbeddings.push({ index: i, embedding });
+        }
+      }
+
+      if (clusterEmbeddings.length === 0) {
+        return cluster;
+      }
+
+      // Recompute centroid based on final membership
+      const centroid = computeCentroid(clusterEmbeddings.map((e) => e.embedding));
+
+      // Select representative notes
+      const representativeIndices = selectRepresentatives(
+        clusterEmbeddings,
+        centroid,
+        config.representativeCount,
+      );
+      const representativeNotes = representativeIndices.map((i) => cluster.noteIds[i]);
+
+      // Extract candidate names from representative notes
+      const candidateNames = this.extractCandidateNames(representativeNotes, files);
+
+      return {
+        ...cluster,
+        centroid,
+        representativeNotes,
+        candidateNames,
+      };
+    });
   }
 
   /**

@@ -88,13 +88,11 @@ export const DEFAULT_HDBSCAN_CONFIG: HDBSCANConfig = {
 /**
  * Configuration for noise reassignment post-processing
  *
- * After HDBSCAN clustering, noise notes can be reassigned to their nearest
+ * After HDBSCAN clustering, noise notes are reassigned to their nearest
  * cluster centroid if the cosine similarity exceeds a threshold. This helps
  * reduce high noise ratios that are common with density-based clustering.
  */
 export interface NoiseReassignConfig {
-  /** Whether to enable noise reassignment (default: false) */
-  enabled: boolean;
   /** Minimum cosine similarity to reassign a noise note to a cluster (default: 0.5) */
   threshold: number;
 }
@@ -103,7 +101,6 @@ export interface NoiseReassignConfig {
  * Default noise reassignment configuration
  */
 export const DEFAULT_NOISE_REASSIGN_CONFIG: NoiseReassignConfig = {
-  enabled: false,
   threshold: 0.5,
 };
 
@@ -201,7 +198,7 @@ export interface ClusteringResult {
     noiseCount: number;
     /** Whether this was a full or incremental run */
     wasIncremental: boolean;
-    /** Noise reassignment stats (only present if reassignment was enabled) */
+    /** Noise reassignment stats */
     reassignment?: {
       /** Original noise count before reassignment */
       originalNoiseCount: number;

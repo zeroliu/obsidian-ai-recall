@@ -99,7 +99,7 @@ Config format:
   {
     "umap": { "nNeighbors": 5, "minDist": 0.05, ... },
     "hdbscan": { "minClusterSize": 30, "minSamples": 1 },
-    "noiseReassign": { "enabled": true, "threshold": 0.5 }
+    "noiseReassign": { "threshold": 0.5 }
   }
 
 Caching:
@@ -124,12 +124,6 @@ Example:
 	if (configPath && existsSync(configPath)) {
 		const customConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
 
-		// Handle legacy 'reassign' field by converting to 'noiseReassign'
-		if (customConfig.reassign && !customConfig.noiseReassign) {
-			customConfig.noiseReassign = customConfig.reassign;
-			delete customConfig.reassign;
-		}
-
 		config = {...DEFAULT_CLUSTERING_CONFIG, ...customConfig};
 		if (customConfig.umap) {
 			config.umap = {...DEFAULT_CLUSTERING_CONFIG.umap, ...customConfig.umap};
@@ -151,9 +145,7 @@ Example:
 	console.error(`=== Clustering V2 Pipeline ===`);
 	console.error(`Vault: ${resolvedVaultPath}`);
 	console.error(`Config: ${configPath ?? 'default'}`);
-	if (config.noiseReassign.enabled) {
-		console.error(`Noise reassign: enabled, threshold=${config.noiseReassign.threshold}`);
-	}
+	console.error(`Noise reassign threshold: ${config.noiseReassign.threshold}`);
 	console.error('');
 
 	const totalStartTime = Date.now();
@@ -209,7 +201,7 @@ Example:
 	}
 	console.error('');
 
-	// Step 3: Run clustering pipeline (includes optional noise reassignment)
+	// Step 3: Run clustering pipeline (includes noise reassignment)
 	console.error('Step 3: Clustering (UMAP + HDBSCAN)...');
 	const clusteringStartTime = Date.now();
 

@@ -10,7 +10,7 @@
  * reducing noise while maintaining cluster quality.
  */
 
-import { computeCentroid, cosineSimilarity } from './centroidCalculator';
+import { cosineSimilarity } from './centroidCalculator';
 import type { EmbeddingCluster } from './types';
 
 /**
@@ -33,7 +33,8 @@ export interface NoiseReassignResult {
  * 2. If max similarity >= threshold, assign to that cluster
  * 3. Otherwise, keep as noise
  *
- * After reassignment, cluster centroids are recomputed to include new notes.
+ * After reassignment, cluster noteIds are updated. Centroids and representative
+ * notes should be recomputed by the caller after this function returns.
  *
  * @param clusters - Current clusters with centroids
  * @param noiseNotes - Note paths currently marked as noise
@@ -92,22 +93,13 @@ export function reassignNoiseNotes(
 		}
 	}
 
-	// Rebuild clusters with updated noteIds and recompute centroids
+	// Rebuild clusters with updated noteIds only
+	// Centroids and representative notes will be recomputed by the caller
 	const updatedClusters: EmbeddingCluster[] = clusters.map((cluster) => {
 		const noteIds = assignments.get(cluster.id) || cluster.noteIds;
-
-		// Recompute centroid with new notes
-		const clusterEmbeddings = noteIds
-			.map((id) => embeddings.get(id))
-			.filter((e): e is number[] => e !== undefined);
-
-		const centroid =
-			clusterEmbeddings.length > 0 ? computeCentroid(clusterEmbeddings) : cluster.centroid;
-
 		return {
 			...cluster,
 			noteIds,
-			centroid,
 		};
 	});
 
