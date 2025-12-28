@@ -1,3 +1,4 @@
+import { estimateTokens } from '@/domain/embedding/tokenUtils';
 import type {
 	BatchEmbeddingResult,
 	EmbeddingConfig,
@@ -103,23 +104,10 @@ export class MockEmbeddingAdapter implements IEmbeddingProvider {
 	/**
 	 * Estimate the number of tokens in a text
 	 * Uses a simple approximation: ~4 characters per token for English,
-	 * ~2 characters per token for CJK
+	 * ~1.5 characters per token for CJK
 	 */
 	estimateTokens(text: string): number {
-		if (!text) return 0;
-
-		// Count CJK characters
-		const cjkPattern = /[\u4e00-\u9fff\u3400-\u4dbf\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff]/g;
-		const cjkMatches = text.match(cjkPattern);
-		const cjkCount = cjkMatches?.length || 0;
-
-		// Non-CJK text: roughly 4 chars per token
-		// CJK text: roughly 1.5 chars per token (each CJK char is ~0.67 tokens)
-		const nonCjkLength = text.length - cjkCount;
-		const nonCjkTokens = Math.ceil(nonCjkLength / 4);
-		const cjkTokens = Math.ceil(cjkCount / 1.5);
-
-		return nonCjkTokens + cjkTokens;
+		return estimateTokens(text);
 	}
 
 	getConfig(): EmbeddingConfig {

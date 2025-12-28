@@ -11,9 +11,11 @@ export type {
 } from './types';
 export { DEFAULT_TEXT_PREPARE_CONFIG } from './types';
 
+// Token utilities
+export { estimateTokens } from './tokenUtils';
+
 // Text preparation
 export {
-	estimateTokens,
 	generateContentHash,
 	hashString,
 	normalizeWhitespace,

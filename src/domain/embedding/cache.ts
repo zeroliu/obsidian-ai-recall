@@ -78,7 +78,8 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
-		const entry = this.index!.entries[notePath];
+		const index = this.getIndex();
+		const entry = index.entries[notePath];
 
 		// Cache miss: no entry or hash mismatch
 		if (!entry || entry.contentHash !== contentHash) {
@@ -111,14 +112,16 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
+		const index = this.getIndex();
+
 		// Update provider/model if this is first embedding
 		if (this.stats.size === 0) {
-			this.index!.provider = embedding.provider;
-			this.index!.model = embedding.model;
+			index.provider = embedding.provider;
+			index.model = embedding.model;
 		}
 
 		// Check for existing entry
-		const existingEntry = this.index!.entries[embedding.notePath];
+		const existingEntry = index.entries[embedding.notePath];
 
 		if (existingEntry) {
 			// Update existing entry
@@ -143,7 +146,7 @@ export class EmbeddingCacheManager {
 			}
 
 			// Add index entry
-			this.index!.entries[embedding.notePath] = {
+			index.entries[embedding.notePath] = {
 				notePath: embedding.notePath,
 				contentHash: embedding.contentHash,
 				chunkId,
@@ -153,7 +156,7 @@ export class EmbeddingCacheManager {
 			this.stats.size++;
 		}
 
-		this.index!.lastUpdated = Date.now();
+		index.lastUpdated = Date.now();
 	}
 
 	/**
@@ -164,7 +167,8 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
-		const entry = this.index!.entries[notePath];
+		const index = this.getIndex();
+		const entry = index.entries[notePath];
 		if (!entry) {
 			return;
 		}
@@ -180,9 +184,9 @@ export class EmbeddingCacheManager {
 		}
 
 		// Remove from index
-		delete this.index!.entries[notePath];
+		delete index.entries[notePath];
 		this.stats.size--;
-		this.index!.lastUpdated = Date.now();
+		index.lastUpdated = Date.now();
 	}
 
 	/**
@@ -223,7 +227,8 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
-		const entry = this.index!.entries[notePath];
+		const index = this.getIndex();
+		const entry = index.entries[notePath];
 		return entry !== undefined && entry.contentHash === contentHash;
 	}
 
@@ -235,7 +240,8 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
-		return Object.keys(this.index!.entries);
+		const index = this.getIndex();
+		return Object.keys(index.entries);
 	}
 
 	/**
@@ -246,8 +252,10 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
+		const index = this.getIndex();
+
 		// Get all chunk IDs to delete
-		const chunkIds = new Set(Object.values(this.index!.entries).map((e) => e.chunkId));
+		const chunkIds = new Set(Object.values(index.entries).map((e) => e.chunkId));
 
 		// Delete all chunks
 		for (const chunkId of chunkIds) {
@@ -255,7 +263,7 @@ export class EmbeddingCacheManager {
 		}
 
 		// Reset index
-		this.index = this.createEmptyIndex(this.index!.provider, this.index!.model);
+		this.index = this.createEmptyIndex(index.provider, index.model);
 		await this.storage.write(this.getIndexKey(), this.index);
 
 		// Clear in-memory state
@@ -272,15 +280,30 @@ export class EmbeddingCacheManager {
 			await this.initialize();
 		}
 
-		if (this.index!.provider !== provider || this.index!.model !== model) {
+		const index = this.getIndex();
+
+		if (index.provider !== provider || index.model !== model) {
 			// Provider/model changed, invalidate all
 			await this.clear();
-			this.index!.provider = provider;
-			this.index!.model = model;
+			// After clear(), this.index is reset, so get it again
+			const newIndex = this.getIndex();
+			newIndex.provider = provider;
+			newIndex.model = model;
 		}
 	}
 
 	// ============ Private Methods ============
+
+	/**
+	 * Ensure index is initialized and return it
+	 * @throws Error if index is not initialized (should never happen after initialize())
+	 */
+	private getIndex(): EmbeddingIndex {
+		if (!this.index) {
+			throw new Error('Cache not initialized. Call initialize() first.');
+		}
+		return this.index;
+	}
 
 	private getIndexKey(): string {
 		return `${this.config.keyPrefix}/index`;
@@ -302,8 +325,9 @@ export class EmbeddingCacheManager {
 
 	private async loadChunk(chunkId: string): Promise<EmbeddingChunk | null> {
 		// Check in-memory cache
-		if (this.chunks.has(chunkId)) {
-			return this.chunks.get(chunkId)!;
+		const cachedChunk = this.chunks.get(chunkId);
+		if (cachedChunk) {
+			return cachedChunk;
 		}
 
 		// Load from storage
@@ -316,8 +340,10 @@ export class EmbeddingCacheManager {
 	}
 
 	private async findOrCreateChunkSlot(): Promise<{ chunkId: string; indexInChunk: number }> {
+		const index = this.getIndex();
+
 		// Find existing chunk with space
-		const chunkIds = new Set(Object.values(this.index!.entries).map((e) => e.chunkId));
+		const chunkIds = new Set(Object.values(index.entries).map((e) => e.chunkId));
 
 		for (const chunkId of chunkIds) {
 			const chunk = await this.loadChunk(chunkId);
@@ -343,8 +369,10 @@ export class EmbeddingCacheManager {
 	}
 
 	private generateChunkId(): string {
+		const index = this.getIndex();
+
 		// Simple incrementing chunk ID
-		const existingIds = new Set(Object.values(this.index!.entries).map((e) => e.chunkId));
+		const existingIds = new Set(Object.values(index.entries).map((e) => e.chunkId));
 		let id = 0;
 		while (existingIds.has(id.toString().padStart(2, '0'))) {
 			id++;

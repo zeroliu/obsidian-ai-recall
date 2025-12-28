@@ -1,4 +1,8 @@
+import { estimateTokens } from './tokenUtils';
 import { DEFAULT_TEXT_PREPARE_CONFIG, type TextPrepareConfig } from './types';
+
+// Re-export for backwards compatibility
+export { estimateTokens };
 
 /**
  * Prepare text content for embedding
@@ -86,27 +90,6 @@ export function normalizeWhitespace(content: string): string {
 		.replace(/[ \t]+/g, ' ') // Collapse multiple spaces/tabs
 		.replace(/^ +/gm, '') // Remove leading spaces from lines
 		.trim();
-}
-
-/**
- * Estimate token count for text
- * Uses approximation: ~4 chars per token for English, ~1.5 chars per token for CJK
- */
-export function estimateTokens(text: string): number {
-	if (!text) return 0;
-
-	// Count CJK characters (Chinese, Japanese, Korean)
-	const cjkPattern = /[\u4e00-\u9fff\u3400-\u4dbf\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff]/g;
-	const cjkMatches = text.match(cjkPattern);
-	const cjkCount = cjkMatches?.length || 0;
-
-	// Non-CJK text: roughly 4 chars per token
-	// CJK text: roughly 1.5 chars per token
-	const nonCjkLength = text.length - cjkCount;
-	const nonCjkTokens = Math.ceil(nonCjkLength / 4);
-	const cjkTokens = Math.ceil(cjkCount / 1.5);
-
-	return nonCjkTokens + cjkTokens;
 }
 
 /**

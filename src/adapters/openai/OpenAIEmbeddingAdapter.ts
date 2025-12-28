@@ -1,3 +1,4 @@
+import { estimateTokens } from '@/domain/embedding/tokenUtils';
 import type {
 	BatchEmbeddingResult,
 	EmbeddingConfig,
@@ -109,18 +110,7 @@ export class OpenAIEmbeddingAdapter implements IEmbeddingProvider {
 	 * OpenAI's cl100k_base tokenizer averages ~4 chars per token for English
 	 */
 	estimateTokens(text: string): number {
-		if (!text) return 0;
-
-		// Count CJK characters (they typically use more tokens)
-		const cjkPattern = /[\u4e00-\u9fff\u3400-\u4dbf\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff]/g;
-		const cjkMatches = text.match(cjkPattern);
-		const cjkCount = cjkMatches?.length ?? 0;
-
-		const nonCjkLength = text.length - cjkCount;
-		const nonCjkTokens = Math.ceil(nonCjkLength / 4);
-		const cjkTokens = Math.ceil(cjkCount / 1.5);
-
-		return nonCjkTokens + cjkTokens;
+		return estimateTokens(text);
 	}
 
 	getConfig(): EmbeddingConfig {

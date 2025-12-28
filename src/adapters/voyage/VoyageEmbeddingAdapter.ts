@@ -1,3 +1,4 @@
+import { estimateTokens } from '@/domain/embedding/tokenUtils';
 import type {
 	BatchEmbeddingResult,
 	EmbeddingConfig,
@@ -7,20 +8,29 @@ import type {
 } from '@/ports/IEmbeddingProvider';
 
 /**
+ * Default Voyage AI API endpoint
+ */
+export const DEFAULT_VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings';
+
+/**
+ * Extended configuration for Voyage AI embedding adapter
+ */
+export interface VoyageEmbeddingConfig extends EmbeddingConfig {
+	/** API endpoint URL (for testing or proxy scenarios) */
+	apiUrl?: string;
+}
+
+/**
  * Default configuration for Voyage AI embedding adapter
  */
-export const DEFAULT_VOYAGE_EMBEDDING_CONFIG: EmbeddingConfig = {
+export const DEFAULT_VOYAGE_EMBEDDING_CONFIG: VoyageEmbeddingConfig = {
 	model: 'voyage-3-lite',
 	maxTokensPerText: 16000,
 	batchSize: 128,
 	maxRetries: 3,
 	retryBaseDelay: 1000,
+	apiUrl: DEFAULT_VOYAGE_API_URL,
 };
-
-/**
- * Voyage AI API endpoint
- */
-const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings';
 
 /**
  * Cost per million tokens for Voyage embedding models
@@ -66,10 +76,23 @@ interface VoyageAPIResponse {
 }
 
 /**
- * Voyage AI API error response
+ * Voyage AI API error response shape
  */
-interface VoyageAPIError {
+interface VoyageAPIErrorResponse {
 	detail: string;
+}
+
+/**
+ * Error class for Voyage AI API errors
+ */
+export class VoyageAPIError extends Error {
+	constructor(
+		public readonly status: number,
+		message: string,
+	) {
+		super(message);
+		this.name = 'VoyageAPIError';
+	}
 }
 
 /**
@@ -77,9 +100,9 @@ interface VoyageAPIError {
  */
 export class VoyageEmbeddingAdapter implements IEmbeddingProvider {
 	private apiKey: string;
-	private config: EmbeddingConfig;
+	private config: VoyageEmbeddingConfig;
 
-	constructor(config: Partial<EmbeddingConfig> & { apiKey: string }) {
+	constructor(config: Partial<VoyageEmbeddingConfig> & { apiKey: string }) {
 		this.config = { ...DEFAULT_VOYAGE_EMBEDDING_CONFIG, ...config };
 		this.apiKey = config.apiKey;
 	}
@@ -139,25 +162,14 @@ export class VoyageEmbeddingAdapter implements IEmbeddingProvider {
 	 * Estimate tokens using a simple approximation
 	 */
 	estimateTokens(text: string): number {
-		if (!text) return 0;
-
-		// Count CJK characters
-		const cjkPattern = /[\u4e00-\u9fff\u3400-\u4dbf\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff]/g;
-		const cjkMatches = text.match(cjkPattern);
-		const cjkCount = cjkMatches?.length ?? 0;
-
-		const nonCjkLength = text.length - cjkCount;
-		const nonCjkTokens = Math.ceil(nonCjkLength / 4);
-		const cjkTokens = Math.ceil(cjkCount / 1.5);
-
-		return nonCjkTokens + cjkTokens;
+		return estimateTokens(text);
 	}
 
 	getConfig(): EmbeddingConfig {
 		return { ...this.config };
 	}
 
-	updateConfig(config: Partial<EmbeddingConfig>): void {
+	updateConfig(config: Partial<VoyageEmbeddingConfig>): void {
 		this.config = { ...this.config, ...config };
 
 		if (config.apiKey) {
@@ -197,7 +209,8 @@ export class VoyageEmbeddingAdapter implements IEmbeddingProvider {
 	private async callEmbeddingAPI(
 		inputs: EmbeddingInput[],
 	): Promise<{ embeddings: EmbeddingResult[]; totalTokens: number }> {
-		const response = await fetch(VOYAGE_API_URL, {
+		const apiUrl = this.config.apiUrl ?? DEFAULT_VOYAGE_API_URL;
+		const response = await fetch(apiUrl, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -211,10 +224,11 @@ export class VoyageEmbeddingAdapter implements IEmbeddingProvider {
 		});
 
 		if (!response.ok) {
-			const errorBody = (await response.json().catch(() => ({}))) as VoyageAPIError;
-			const error = new Error(errorBody.detail ?? `API error: ${response.status}`);
-			(error as Error & { status: number }).status = response.status;
-			throw error;
+			const errorBody = (await response.json().catch(() => ({}))) as VoyageAPIErrorResponse;
+			throw new VoyageAPIError(
+				response.status,
+				errorBody.detail ?? `API error: ${response.status}`,
+			);
 		}
 
 		const data = (await response.json()) as VoyageAPIResponse;
