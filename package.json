@@ -46,7 +46,7 @@
     "umap-js": "^1.4.0"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
+    "src/**/*.{ts,tsx,js,jsx}": [
       "biome check --write"
     ]
   }
