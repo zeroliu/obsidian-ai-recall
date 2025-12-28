@@ -4,7 +4,6 @@
  * Common functions used across multiple scripts for reading and parsing vault files.
  */
 
-import 'dotenv/config';
 import {readdirSync, readFileSync, statSync} from 'node:fs';
 import {basename, dirname, join} from 'node:path';
 import type {FileInfo} from '../../src/ports/IVaultProvider';
