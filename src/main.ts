@@ -3,6 +3,8 @@ import {
   ObsidianMetadataAdapter,
   ObsidianStorageAdapter,
   ObsidianVaultAdapter,
+  RECALL_VIEW_TYPE,
+  RecallView,
 } from '@/adapters/obsidian';
 import { OpenAIEmbeddingAdapter } from '@/adapters/openai/OpenAIEmbeddingAdapter';
 import { VoyageEmbeddingAdapter } from '@/adapters/voyage/VoyageEmbeddingAdapter';
@@ -27,6 +29,23 @@ export default class AIRecallPlugin extends Plugin {
     // Register settings tab
     this.addSettingTab(new AIRecallSettingsTab(this.app, this));
 
+    // Register the Recall view
+    this.registerView(RECALL_VIEW_TYPE, (leaf) => new RecallView(leaf));
+
+    // Add ribbon icon to open Recall
+    this.addRibbonIcon('brain', 'Open Recall', () => {
+      this.activateRecallView();
+    });
+
+    // Add command to open Recall
+    this.addCommand({
+      id: 'open-recall-view',
+      name: 'Open Recall panel',
+      callback: () => {
+        this.activateRecallView();
+      },
+    });
+
     // Register clustering command
     this.addCommand({
       id: 'run-clustering',
@@ -37,6 +56,8 @@ export default class AIRecallPlugin extends Plugin {
 
   async onunload(): Promise<void> {
     console.log('Unloading AI Recall plugin');
+    // Detach all Recall views
+    this.app.workspace.detachLeavesOfType(RECALL_VIEW_TYPE);
   }
 
   async loadSettings(): Promise<void> {
@@ -45,6 +66,28 @@ export default class AIRecallPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  async activateRecallView(): Promise<void> {
+    const { workspace } = this.app;
+
+    let leaf = workspace.getLeavesOfType(RECALL_VIEW_TYPE)[0];
+
+    if (!leaf) {
+      // Open in right sidebar
+      const rightLeaf = workspace.getRightLeaf(false);
+      if (rightLeaf) {
+        await rightLeaf.setViewState({
+          type: RECALL_VIEW_TYPE,
+          active: true,
+        });
+        leaf = rightLeaf;
+      }
+    }
+
+    if (leaf) {
+      workspace.revealLeaf(leaf);
+    }
   }
 
   /**
