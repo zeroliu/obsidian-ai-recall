@@ -1,6 +1,9 @@
 #!/usr/bin/env npx tsx
 /**
- * Run embedding-based clustering (V2) on a vault
+ * Run clustering pipeline (without LLM) on a vault
+ *
+ * This script is a thin wrapper around PipelineOrchestrator that allows
+ * running the production clustering pipeline outside of the Obsidian environment.
  *
  * Usage:
  *   TEST_VAULT_PATH=~/Documents/MyVault OPENAI_API_KEY=xxx npx tsx scripts/run-clustering.ts [options]
@@ -13,89 +16,37 @@
  *
  * Options:
  *   --provider <name> Embedding provider: openai (default) or voyage
- *   --config <path>   Custom clustering config JSON
- *   --output <path>   Output file (default: outputs/vault-clusters-v2.json)
+ *   --output <path>   Output directory (default: outputs)
  *   --help, -h        Show help
- *
- * Caching:
- *   Embeddings are cached in <output-dir>/.embedding-cache/ to avoid redundant API calls.
- *   The cache is content-hash based, so only modified notes are re-embedded.
  */
 
-import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
-import {basename, dirname, join} from 'node:path';
-import {OpenAIEmbeddingAdapter} from '../src/adapters/openai/OpenAIEmbeddingAdapter';
-import {VoyageEmbeddingAdapter} from '../src/adapters/voyage/VoyageEmbeddingAdapter';
-import type {IEmbeddingProvider} from '../src/ports/IEmbeddingProvider';
-import {EmbeddingOrchestrator} from '../src/domain/embedding/embedBatch';
-import {EmbeddingCacheManager} from '../src/domain/embedding/cache';
-import {ClusteringPipeline} from '../src/domain/clustering/pipeline';
-import {cosineSimilarity} from '../src/domain/clustering/centroidCalculator';
-import type {ClusteringConfig} from '../src/domain/clustering/types';
-import {DEFAULT_CLUSTERING_CONFIG} from '../src/domain/clustering/types';
-import {getArg, readVault, requireTestVaultPath} from './lib/vault-helpers';
-import {FileStorageAdapter} from './lib/file-storage';
-
-// ============ Types ============
-
-interface ClusteringOutput {
-	stats: {
-		totalNotes: number;
-		clusteredNotes: number;
-		noiseNotes: number;
-		stubNotes: number;
-		clusterCount: number;
-		avgClusterSize: number;
-		embeddingDimensions: number;
-		umapDimensions: number;
-		embeddingStats: {
-			cacheHits: number;
-			cacheMisses: number;
-			tokensProcessed: number;
-			estimatedCost: number;
-		};
-		reassignment?: {
-			originalNoiseCount: number;
-			reassignedCount: number;
-		};
-	};
-	clusters: Array<{
-		id: string;
-		noteIds: string[];
-		noteCount: number;
-		representativeNotes: Array<{
-			path: string;
-			title: string;
-			distanceToCentroid: number;
-		}>;
-		candidateNames: string[];
-		dominantTags: string[];
-		folderPath: string;
-		internalLinkDensity: number;
-	}>;
-	noiseNotes: string[];
-	stubs: string[];
-	timing: {
-		embeddingMs: number;
-		clusteringMs: number;
-		totalMs: number;
-	};
-}
+import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  FileStorageAdapter,
+  FileSystemMetadataAdapter,
+  FileSystemVaultAdapter,
+} from '../src/adapters/filesystem';
+import { OpenAIEmbeddingAdapter } from '../src/adapters/openai/OpenAIEmbeddingAdapter';
+import { VoyageEmbeddingAdapter } from '../src/adapters/voyage/VoyageEmbeddingAdapter';
+import type { IEmbeddingProvider } from '../src/ports/IEmbeddingProvider';
+import { PipelineOrchestrator } from '../src/domain/pipeline/PipelineOrchestrator';
+import type { PersistedClusteringResult, PipelineProgress } from '../src/domain/pipeline/types';
+import { getArg, requireTestVaultPath } from './lib/vault-helpers';
 
 // ============ Main ============
 
 async function main() {
-	const args = process.argv.slice(2);
+  const args = process.argv.slice(2);
 
-	if (args.includes('--help') || args.includes('-h')) {
-		console.log(`
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
 Usage: TEST_VAULT_PATH=~/Documents/MyVault OPENAI_API_KEY=xxx npx tsx scripts/run-clustering.ts [options]
        TEST_VAULT_PATH=~/Documents/MyVault VOYAGE_API_KEY=xxx npx tsx scripts/run-clustering.ts --provider voyage [options]
 
 Options:
   --provider <name> Embedding provider: openai (default) or voyage
-  --config <path>   Custom clustering config JSON
-  --output <path>   Output file (default: outputs/vault-clusters-v2.json)
+  --output <path>   Output directory (default: outputs)
   --help, -h        Show help
 
 Environment:
@@ -103,249 +54,124 @@ Environment:
   OPENAI_API_KEY    Required for OpenAI embedding (default provider)
   VOYAGE_API_KEY    Required for Voyage AI embedding
 
-Config format:
-  {
-    "umap": { "nNeighbors": 5, "minDist": 0.05, ... },
-    "hdbscan": { "minClusterSize": 30, "minSamples": 1 },
-    "noiseReassign": { "threshold": 0.5 }
-  }
-
-Caching:
-  Embeddings are cached in <output-dir>/.embedding-cache/ to avoid redundant API calls.
-  The cache is content-hash based, so only modified notes are re-embedded.
-
 Examples:
-  TEST_VAULT_PATH=~/Documents/MyVault OPENAI_API_KEY=sk-xxx npx tsx scripts/run-clustering.ts --config config.json
+  TEST_VAULT_PATH=~/Documents/MyVault OPENAI_API_KEY=sk-xxx npx tsx scripts/run-clustering.ts
   TEST_VAULT_PATH=~/Documents/MyVault VOYAGE_API_KEY=pa-xxx npx tsx scripts/run-clustering.ts --provider voyage
 `);
-		process.exit(0);
-	}
+    process.exit(0);
+  }
 
-	// Get vault path from environment
-	const resolvedVaultPath = requireTestVaultPath();
+  // Get vault path from environment
+  const resolvedVaultPath = requireTestVaultPath();
 
-	const providerName = getArg(args, '--provider') ?? 'openai';
-	const configPath = getArg(args, '--config');
-	const outputPath = getArg(args, '--output') ?? 'outputs/vault-clusters-v2.json';
+  const providerName = getArg(args, '--provider') ?? 'openai';
+  const outputDir = getArg(args, '--output') ?? 'outputs';
 
-	// Load config
-	let config: ClusteringConfig = {...DEFAULT_CLUSTERING_CONFIG};
+  // Create embedding provider based on --provider flag
+  let embeddingProvider: IEmbeddingProvider;
+  if (providerName === 'voyage') {
+    const apiKey = process.env.VOYAGE_API_KEY;
+    if (!apiKey) {
+      console.error('Error: VOYAGE_API_KEY environment variable required for Voyage provider');
+      process.exit(1);
+    }
+    embeddingProvider = new VoyageEmbeddingAdapter({ apiKey });
+  } else if (providerName === 'openai') {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error('Error: OPENAI_API_KEY environment variable required for OpenAI provider');
+      process.exit(1);
+    }
+    embeddingProvider = new OpenAIEmbeddingAdapter({ apiKey });
+  } else {
+    console.error(`Error: Unknown provider "${providerName}". Use "openai" or "voyage".`);
+    process.exit(1);
+  }
 
-	if (configPath && existsSync(configPath)) {
-		const customConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+  // Ensure output directory exists
+  if (!existsSync(outputDir)) {
+    mkdirSync(outputDir, { recursive: true });
+  }
 
-		config = {...DEFAULT_CLUSTERING_CONFIG, ...customConfig};
-		if (customConfig.umap) {
-			config.umap = {...DEFAULT_CLUSTERING_CONFIG.umap, ...customConfig.umap};
-		}
-		if (customConfig.hdbscan) {
-			config.hdbscan = {...DEFAULT_CLUSTERING_CONFIG.hdbscan, ...customConfig.hdbscan};
-		}
-		if (customConfig.noiseReassign) {
-			config.noiseReassign = {...DEFAULT_CLUSTERING_CONFIG.noiseReassign, ...customConfig.noiseReassign};
-		}
-	}
+  console.error(`=== Clustering Pipeline ===`);
+  console.error(`Vault: ${resolvedVaultPath}`);
+  console.error(`Provider: ${embeddingProvider.getProviderName()} (${embeddingProvider.getModelName()})`);
+  console.error(`Output: ${outputDir}`);
+  console.error('');
 
-	// Create embedding provider based on --provider flag
-	let provider: IEmbeddingProvider;
-	if (providerName === 'voyage') {
-		const apiKey = process.env.VOYAGE_API_KEY;
-		if (!apiKey) {
-			console.error('Error: VOYAGE_API_KEY environment variable required for Voyage provider');
-			process.exit(1);
-		}
-		provider = new VoyageEmbeddingAdapter({apiKey});
-	} else if (providerName === 'openai') {
-		const apiKey = process.env.OPENAI_API_KEY;
-		if (!apiKey) {
-			console.error('Error: OPENAI_API_KEY environment variable required for OpenAI provider');
-			process.exit(1);
-		}
-		provider = new OpenAIEmbeddingAdapter({apiKey});
-	} else {
-		console.error(`Error: Unknown provider "${providerName}". Use "openai" or "voyage".`);
-		process.exit(1);
-	}
+  // Create adapters
+  const vaultAdapter = new FileSystemVaultAdapter(resolvedVaultPath);
+  const metadataAdapter = new FileSystemMetadataAdapter(resolvedVaultPath);
+  const storageAdapter = new FileStorageAdapter(outputDir);
 
-	console.error(`=== Clustering V2 Pipeline ===`);
-	console.error(`Vault: ${resolvedVaultPath}`);
-	console.error(`Provider: ${provider.getProviderName()} (${provider.getModelName()})`);
-	console.error(`Config: ${configPath ?? 'default'}`);
-	console.error(`Noise reassign threshold: ${config.noiseReassign.threshold}`);
-	console.error('');
+  // Create orchestrator (no LLM provider)
+  const orchestrator = new PipelineOrchestrator(
+    vaultAdapter,
+    metadataAdapter,
+    storageAdapter,
+    embeddingProvider,
+    [], // No exclude patterns
+    null, // No LLM provider
+  );
 
-	const totalStartTime = Date.now();
+  // Run pipeline with progress reporting
+  const result = await orchestrator.run((progress: PipelineProgress) => {
+    const stageNames: Record<PipelineProgress['stage'], string> = {
+      reading: 'Reading',
+      embedding: 'Embedding',
+      clustering: 'Clustering',
+      refining: 'Refining',
+      saving: 'Saving',
+    };
+    process.stderr.write(`\r[${stageNames[progress.stage]}] ${progress.message}`);
+    if (progress.current === progress.total) {
+      console.error(''); // Newline after stage completion
+    }
+  });
 
-	// Step 1: Read vault
-	console.error('Step 1: Reading vault...');
-	const vault = readVault(resolvedVaultPath);
-	const {files, contents, noteTags, resolvedLinks, stubs} = vault;
+  // Load persisted result for detailed output
+  const persistedResult = await storageAdapter.read<PersistedClusteringResult>('clusters');
 
-	console.error(`Non-stub notes: ${files.size}`);
-	console.error(`Stub notes excluded: ${stubs.length}`);
-	console.error('');
+  // Print summary
+  console.error('');
+  console.error('=== Results ===');
+  console.error(`Total notes: ${result.totalNotes}`);
+  console.error(`Excluded: ${result.excludedCount}`);
+  console.error(`Clusters: ${result.clusterCount}`);
+  console.error(`Noise notes: ${result.noiseCount}`);
+  console.error('');
+  console.error(`Total time: ${(result.timing.totalMs / 1000).toFixed(2)}s`);
+  console.error(`  Embedding: ${(result.timing.embeddingMs / 1000).toFixed(2)}s`);
+  console.error(`  Clustering: ${(result.timing.clusteringMs / 1000).toFixed(2)}s`);
+  console.error('');
+  console.error('Embedding stats:');
+  console.error(`  Cache hits: ${result.embeddingStats.cacheHits}`);
+  console.error(`  Cache misses: ${result.embeddingStats.cacheMisses}`);
+  console.error(`  Tokens: ${result.embeddingStats.tokensProcessed}`);
+  console.error(`  Estimated cost: $${result.embeddingStats.estimatedCost.toFixed(6)}`);
+  console.error('');
+  console.error(`Output saved to: ${join(outputDir, 'clusters.json')}`);
 
-	// Step 2: Embed notes
-	console.error('Step 2: Embedding notes...');
-	const embeddingStartTime = Date.now();
-
-	// Set up file-based cache for embeddings
-	const cacheDir = join(dirname(outputPath), '.embedding-cache');
-	const storage = new FileStorageAdapter(cacheDir);
-	const cache = new EmbeddingCacheManager(storage);
-	await cache.initialize();
-
-	// Check for provider/model changes (invalidates cache if changed)
-	await cache.setProviderModel(provider.getProviderName(), provider.getModelName());
-
-	const orchestrator = new EmbeddingOrchestrator(provider, cache, {useCache: true});
-
-	const notesToEmbed = Array.from(contents.entries()).map(([path, content]) => ({
-		notePath: path,
-		content,
-	}));
-
-	const embeddingResult = await orchestrator.embedNotes(notesToEmbed, (completed, total) => {
-		process.stderr.write(`\r  Embedded ${completed}/${total} notes`);
-	});
-	console.error('');
-
-	// Flush cache to persist new embeddings
-	await cache.flush();
-
-	const embeddingMs = Date.now() - embeddingStartTime;
-	console.error(
-		`Embedding complete: ${embeddingResult.notes.length} notes, ${embeddingResult.stats.tokensProcessed} tokens`,
-	);
-	console.error(
-		`Cache: ${embeddingResult.stats.cacheHits} hits, ${embeddingResult.stats.cacheMisses} misses`,
-	);
-	if (embeddingResult.stats.cacheMisses > 0) {
-		console.error(`Estimated cost (new embeddings): $${embeddingResult.stats.estimatedCost.toFixed(6)}`);
-	}
-	console.error('');
-
-	// Step 3: Run clustering pipeline (includes noise reassignment)
-	console.error('Step 3: Clustering (UMAP + HDBSCAN)...');
-	const clusteringStartTime = Date.now();
-
-	const pipeline = new ClusteringPipeline(config);
-	const clusteringResult = await pipeline.run({
-		embeddedNotes: embeddingResult.notes,
-		noteTags,
-		resolvedLinks,
-		files,
-		previousState: null,
-		config,
-	});
-
-	const clusteringMs = Date.now() - clusteringStartTime;
-
-	// Log results
-	const {clusters, noiseNotes, stats} = clusteringResult.result;
-	if (stats.reassignment) {
-		console.error(`  Initial noise: ${stats.reassignment.originalNoiseCount} (${(stats.reassignment.originalNoiseCount / embeddingResult.notes.length * 100).toFixed(1)}%)`);
-		console.error(`  Reassigned: ${stats.reassignment.reassignedCount} notes`);
-		console.error(`  Final noise: ${noiseNotes.length} (${(noiseNotes.length / embeddingResult.notes.length * 100).toFixed(1)}%)`);
-	} else {
-		console.error(`  Noise notes: ${noiseNotes.length} (${(noiseNotes.length / embeddingResult.notes.length * 100).toFixed(1)}%)`);
-	}
-	console.error(`  Clusters: ${clusters.length}`);
-	console.error('');
-
-	// Build embedding map for output
-	const embeddingMap = new Map<string, number[]>();
-	for (const note of embeddingResult.notes) {
-		embeddingMap.set(note.notePath, note.embedding);
-	}
-
-	const output: ClusteringOutput = {
-		stats: {
-			totalNotes: files.size + stubs.length,
-			clusteredNotes: clusters.reduce((sum, c) => sum + c.noteIds.length, 0),
-			noiseNotes: noiseNotes.length,
-			stubNotes: stubs.length,
-			clusterCount: clusters.length,
-			avgClusterSize:
-				clusters.length > 0
-					? clusters.reduce((sum, c) => sum + c.noteIds.length, 0) / clusters.length
-					: 0,
-			embeddingDimensions: provider.getDimensions(),
-			umapDimensions: 10,
-			embeddingStats: {
-				cacheHits: embeddingResult.stats.cacheHits,
-				cacheMisses: embeddingResult.stats.cacheMisses,
-				tokensProcessed: embeddingResult.stats.tokensProcessed,
-				estimatedCost: embeddingResult.stats.estimatedCost,
-			},
-			...(stats.reassignment && {reassignment: stats.reassignment}),
-		},
-		clusters: clusters.map((cluster) => ({
-			id: cluster.id,
-			noteIds: cluster.noteIds,
-			noteCount: cluster.noteIds.length,
-			representativeNotes: cluster.representativeNotes.map((notePath) => {
-				const embedding = embeddingMap.get(notePath);
-				const distance =
-					embedding && cluster.centroid ? 1 - cosineSimilarity(embedding, cluster.centroid) : 0;
-				return {
-					path: notePath,
-					title: files.get(notePath)?.basename ?? basename(notePath, '.md'),
-					distanceToCentroid: distance,
-				};
-			}),
-			candidateNames: cluster.candidateNames,
-			dominantTags: cluster.dominantTags,
-			folderPath: cluster.folderPath,
-			internalLinkDensity: cluster.internalLinkDensity,
-		})),
-		noiseNotes,
-		stubs,
-		timing: {
-			embeddingMs,
-			clusteringMs,
-			totalMs: Date.now() - totalStartTime,
-		},
-	};
-
-	// Ensure output directory exists
-	const outputDir = dirname(outputPath);
-	if (!existsSync(outputDir)) {
-		mkdirSync(outputDir, {recursive: true});
-	}
-
-	writeFileSync(outputPath, JSON.stringify(output, null, 2));
-
-	// Print summary
-	console.error('=== Results ===');
-	console.error(`Total notes: ${output.stats.totalNotes}`);
-	console.error(`Clustered: ${output.stats.clusteredNotes}`);
-	console.error(`Noise: ${output.stats.noiseNotes}`);
-	console.error(`Stubs: ${output.stats.stubNotes}`);
-	console.error(`Clusters: ${output.stats.clusterCount}`);
-	console.error(`Avg cluster size: ${output.stats.avgClusterSize.toFixed(1)}`);
-	console.error('');
-	console.error(`Total time: ${(output.timing.totalMs / 1000).toFixed(2)}s`);
-	console.error(`  Embedding: ${(output.timing.embeddingMs / 1000).toFixed(2)}s`);
-	console.error(`  Clustering: ${(output.timing.clusteringMs / 1000).toFixed(2)}s`);
-	console.error('');
-	console.error(`Output saved to: ${outputPath}`);
-
-	// Print top clusters
-	console.error('');
-	console.error('=== Top 10 Clusters ===');
-	const sortedClusters = [...output.clusters].sort((a, b) => b.noteCount - a.noteCount);
-	for (const cluster of sortedClusters.slice(0, 10)) {
-		console.error(
-			`  [${cluster.noteCount} notes] ${cluster.candidateNames.slice(0, 3).join(', ')}`,
-		);
-		console.error(`    Tags: ${cluster.dominantTags.slice(0, 5).join(', ') || '(none)'}`);
-		console.error(`    Representatives: ${cluster.representativeNotes.map((n) => n.title).join(', ')}`);
-	}
+  // Print top clusters
+  if (persistedResult) {
+    console.error('');
+    console.error('=== Top 10 Clusters ===');
+    const sortedClusters = [...persistedResult.clusters].sort(
+      (a, b) => b.noteIds.length - a.noteIds.length,
+    );
+    for (const cluster of sortedClusters.slice(0, 10)) {
+      const name = cluster.candidateNames[0] ?? cluster.id;
+      console.error(`  [${cluster.noteIds.length} notes] ${cluster.candidateNames.slice(0, 3).join(', ') || name}`);
+      console.error(`    Tags: ${cluster.dominantTags.slice(0, 5).join(', ') || '(none)'}`);
+      if (cluster.representativeNotes) {
+        console.error(`    Representatives: ${cluster.representativeNotes.map((n) => n.title).join(', ')}`);
+      }
+    }
+  }
 }
 
 main().catch((err) => {
-	console.error('Error:', err.message);
-	console.error(err.stack);
-	process.exit(1);
+  console.error('Error:', err.message);
+  console.error(err.stack);
+  process.exit(1);
 });

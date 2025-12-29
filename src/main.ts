@@ -1,3 +1,4 @@
+import { AnthropicLLMAdapter } from '@/adapters/anthropic/AnthropicLLMAdapter';
 import {
   ObsidianMetadataAdapter,
   ObsidianStorageAdapter,
@@ -91,6 +92,15 @@ export default class AIRecallPlugin extends Plugin {
       return;
     }
 
+    // Validate Anthropic API key (required for LLM naming)
+    if (!this.settings.anthropicApiKey) {
+      new Notice('Please configure your Anthropic API key in settings.');
+      return;
+    }
+
+    // Create LLM provider
+    const llmProvider = new AnthropicLLMAdapter(this.settings.anthropicApiKey);
+
     // Create adapters
     const vaultAdapter = new ObsidianVaultAdapter(this.app);
     const metadataAdapter = new ObsidianMetadataAdapter(this.app);
@@ -105,6 +115,7 @@ export default class AIRecallPlugin extends Plugin {
       metadataAdapter,
       storageAdapter,
       embeddingProvider,
+      llmProvider,
       excludePatterns,
     );
 
@@ -127,8 +138,13 @@ export default class AIRecallPlugin extends Plugin {
       const excludedInfo =
         result.excludedCount > 0 ? `\n${result.excludedCount} paths excluded` : '';
 
+      const llmInfo =
+        result.llmStats !== null
+          ? `\n${result.llmStats.conceptsNamed} concepts named (${result.llmStats.quizzableCount} quizzable)`
+          : '';
+
       new Notice(
-        `Clustering complete!\n${result.clusterCount} clusters found\n${result.totalNotes} notes processed${excludedInfo}\n${result.noiseCount} noise notes\nTime: ${(result.timing.totalMs / 1000).toFixed(1)}s${costInfo}`,
+        `Clustering complete!\n${result.clusterCount} clusters found\n${result.totalNotes} notes processed${excludedInfo}\n${result.noiseCount} noise notes${llmInfo}\nTime: ${(result.timing.totalMs / 1000).toFixed(1)}s${costInfo}`,
         8000,
       );
 
