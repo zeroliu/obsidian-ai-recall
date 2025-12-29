@@ -1,0 +1,91 @@
+/*
+ * Recall Plugin CSS Variables
+ * Maps Obsidian theme variables to recall-prefixed tokens
+ * This enables automatic light/dark theme support
+ */
+
+.recall-view-container {
+  /* === BACKGROUNDS === */
+  --recall-bg: var(--background-primary);
+  --recall-bg-secondary: var(--background-secondary);
+  --recall-bg-card: var(--background-secondary);
+  --recall-bg-hover: var(--background-modifier-hover);
+
+  /* === TEXT === */
+  --recall-text: var(--text-normal);
+  --recall-text-muted: var(--text-muted);
+  --recall-text-faint: var(--text-faint);
+  --recall-text-on-accent: var(--text-on-accent);
+
+  /* === ACCENT (uses user's accent color) === */
+  --recall-accent: var(--interactive-accent);
+  --recall-accent-hover: var(--interactive-accent-hover);
+
+  /* === STATUS COLORS === */
+  --recall-success: var(--color-green);
+  --recall-warning: var(--color-yellow);
+  --recall-error: var(--color-red);
+  --recall-info: var(--color-blue);
+
+  /* === BORDERS === */
+  --recall-border: var(--background-modifier-border);
+  --recall-border-focus: var(--interactive-accent);
+
+  /* === INPUTS === */
+  --recall-input-bg: var(--background-modifier-form-field);
+
+  /* === SPACING (4px base grid) === */
+  --recall-space-1: 4px;
+  --recall-space-2: 8px;
+  --recall-space-3: 12px;
+  --recall-space-4: 16px;
+  --recall-space-5: 20px;
+  --recall-space-6: 24px;
+  --recall-space-8: 32px;
+
+  /* === TYPOGRAPHY === */
+  --recall-font-ui: var(--font-interface);
+  --recall-font-size-xs: var(--font-ui-smaller);
+  --recall-font-size-sm: var(--font-ui-small);
+  --recall-font-size-base: var(--font-ui-medium);
+  --recall-font-size-lg: var(--font-ui-large);
+
+  /* === RADIUS === */
+  --recall-radius-sm: 4px;
+  --recall-radius-md: 6px;
+  --recall-radius-lg: 8px;
+  --recall-radius-full: 9999px;
+
+  /* === SHADOWS === */
+  --recall-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --recall-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  /* === TRANSITIONS === */
+  --recall-transition-fast: 100ms ease-out;
+  --recall-transition-normal: 150ms ease-out;
+  --recall-transition-slow: 200ms ease-out;
+}
+
+/*
+ * Base styles for the Recall plugin
+ */
+
+.recall-view-container {
+  width: 100%;
+  height: 100%;
+  font-family: var(--recall-font-ui);
+  font-size: var(--recall-font-size-base);
+  color: var(--recall-text);
+  background-color: var(--recall-bg);
+  overflow: hidden;
+}
+
+/* Reset for plugin container */
+.recall-view-container * {
+  box-sizing: border-box;
+}
+
+.recall-view-container button {
+  font-family: inherit;
+  cursor: var(--cursor);
+}

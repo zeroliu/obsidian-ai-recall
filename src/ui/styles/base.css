@@ -1,0 +1,25 @@
+/*
+ * Base styles for the Recall plugin
+ */
+
+@import './variables.css';
+
+.recall-view-container {
+  width: 100%;
+  height: 100%;
+  font-family: var(--recall-font-ui);
+  font-size: var(--recall-font-size-base);
+  color: var(--recall-text);
+  background-color: var(--recall-bg);
+  overflow: hidden;
+}
+
+/* Reset for plugin container */
+.recall-view-container * {
+  box-sizing: border-box;
+}
+
+.recall-view-container button {
+  font-family: inherit;
+  cursor: var(--cursor);
+}
