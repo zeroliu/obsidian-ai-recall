@@ -13,7 +13,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 ## App Structure
 
 **Container**: Right sidebar panel in Obsidian (width: 320px)
-**Navigation**: Three tabs at the top — Quiz (default), Progress, Settings
+**Navigation**: Four tabs at the top — Quiz (default), Concepts, Activity, Settings
 
 ---
 
@@ -88,8 +88,15 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]    [⚙️] │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
+│                                         │
+│  ⚡ Quick Start:                        │
+│  [📅 Last week's notes (12)]            │
+│  [📚 All tracked concepts]              │
+│  [🔄 Due for review (5 concepts)]       │
+│                                         │
+│  ─────────────────────────────────────  │
 │                                         │
 │  💡 Your concepts                       │
 │                                         │
@@ -115,6 +122,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 │  ─────────────────────────────────────  │
 │                                         │
 │  🔍 Quiz me on...                       │
+│  📄 Quiz specific notes...              │
 │                                         │
 │  ─────────────────────────────────────  │
 │  📈 7-day streak · 73% mastery          │
@@ -126,34 +134,46 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 **Components:**
 
 1. **Tab bar**
-   - 3 tabs: Quiz (active), Progress, Settings
+   - 4 tabs: Quiz (active), Concepts, Activity, Settings
    - Active tab: primary color underline
    - Tap tab → switch view with horizontal slide
 
-2. **Concept card**
+2. **Quick Start section**
+   - Three one-click quiz options as list buttons
+   - **Last week's notes**: Quiz notes created/modified in last 7 days
+   - **All tracked concepts**: Mixed review sampling from all tracked concepts
+   - **Due for review**: Concepts prioritized by spaced repetition schedule
+   - Each button shows count in parentheses
+   - Tap any button → immediately start quiz with that filter
+
+3. **Concept card**
    - Left: emoji icon + concept name
    - Right: status text (muted) + play button (▶)
    - Status options: "due today" (orange), "X new notes" (blue), "X days ago" (gray)
    - Hover: subtle background highlight
    - Tap anywhere on card → start quiz for that concept
 
-3. **New concept suggestion card**
+4. **New concept suggestion card**
    - Highlighted border (dashed, primary color)
    - Title + subtitle explaining the suggestion
    - Two buttons: Add (primary, small) + Skip (secondary, small)
    - Tap Add → card animates up to join concept list
    - Tap Skip → card fades out and collapses
 
-4. **"Quiz me on..." input**
+5. **"Quiz me on..." input**
    - Placeholder: "Quiz me on..."
    - Semantic search input (not keyword filter)
    - Tap → focus with cursor, keyboard appears
    - User types natural language query (e.g., "agentic app development")
    - Enter → AI searches vault, transitions to Topic Discovery (2.2)
 
-5. **Progress summary bar**
+6. **"Quiz specific notes..." button**
+   - Secondary action, appears below "Quiz me on..."
+   - Tap → transitions to Quiz Specific Notes flow (2.3)
+
+7. **Progress summary bar**
    - Streak icon + count + mastery percentage
-   - Tap "View Progress" → switch to Progress tab
+   - Tap "View Progress" → switch to Activity tab
 
 **Interactions:**
 - Pull down → refresh concept suggestions
@@ -167,7 +187,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
 │                                         │
 │  🔍 Searching for notes about           │
@@ -191,7 +211,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
 │                                         │
 │  Found 8 notes about                    │
@@ -256,7 +276,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
 │                                         │
 │  ⚠️ No notes found                      │
@@ -309,6 +329,88 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 **Interactions:**
 - Tap related topic → transition to Searching (2.2.1) with new query
 - Enter in search input → transition to Searching (2.2.1)
+- Back → slide back to Home
+
+---
+
+## Screen 2.3: "Quiz Specific Notes" Flow
+
+```
+┌─────────────────────────────────────────┐
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
+├─────────────────────────────────────────┤
+│                                         │
+│  📄 Quiz Specific Notes                 │
+│                                         │
+│  Select notes to quiz:                  │
+│                                         │
+│  🔍 [Search notes...]                   │
+│                                         │
+│  📂 Recent notes:                       │
+│  ┌─────────────────────────────────────┐│
+│  │ [✓] claude-agent-sdk.md            ││
+│  │ [✓] react-hooks-guide.md           ││
+│  │ [ ] meeting-notes-dec.md           ││
+│  │ [ ] random-thoughts.md             ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  📅 Or filter by time:                  │
+│  [Last 3 days] [Last week] [Last month] │
+│  Toggle: [Created ○] [Modified ●]       │
+│                                         │
+│  ─────────────────────────────────────  │
+│  Selected: 2 notes                      │
+│  [▶ Start Quiz]                         │
+│                                         │
+│  [← Back]                               │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Components:**
+
+1. **Search input**
+   - Full-text search across note titles
+   - Tap → focus, keyboard appears
+   - Results filter the note list in real-time
+
+2. **Recent notes list**
+   - Shows recently modified notes
+   - Checkbox on left, note filename
+   - Tap row → toggle checkbox
+   - Scrollable if many notes
+
+3. **Time filter buttons**
+   - Segmented control: Last 3 days, Last week, Last month
+   - Tap → filter note list to that time range
+   - Only one can be active at a time
+
+4. **Date type toggle**
+   - Switch between filtering by Created date vs Modified date
+   - Radio-style toggle: Created / Modified
+   - Default: Modified
+
+5. **Selection counter**
+   - Shows "Selected: X notes"
+   - Updates immediately on selection change
+
+6. **Start Quiz button**
+   - Primary button, full-width
+   - Disabled if 0 notes selected
+   - Tap → generate quiz from selected notes, transition to Quiz Flow (Screen 3)
+
+7. **Back button**
+   - Text link, left-aligned
+   - Returns to Home screen
+
+**Interactions:**
+- Search input filters note list as user types
+- Time filters are mutually exclusive (tap one, others deselect)
+- Date toggle affects which date the time filter uses
+- Start Quiz → questions generated on-the-fly from selected notes
+
+**Transitions:**
+- Slide in from right when entering
 - Back → slide back to Home
 
 ---
@@ -634,7 +736,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
 │                                         │
 │  🎉 Quiz Complete!                      │
@@ -687,42 +789,212 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 ---
 
-## Screen 6: Progress Tab
+## Screen 6: Concepts Tab
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
 │                                         │
-│  📊 Your Progress                       │
+│  💡 Your Concepts                       │
 │                                         │
-│  ┌─────────────────────────────────┐   │
-│  │ 🔥 12-day streak                │   │
-│  │ 73% overall mastery             │   │
-│  └─────────────────────────────────┘   │
+│  🔍 [Search concepts...]                │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  Tracked (12)                           │
+│                                         │
+│  🟢 React Hooks              8 notes  > │
+│     Mastered · 92% · reviewed 2 days    │
+│                                         │
+│  🟡 Golf Swing               5 notes  > │
+│     Learning · 65% · due today          │
+│                                         │
+│  🟡 TypeScript Generics      3 notes  > │
+│     Learning · 71% · due in 3 days      │
+│                                         │
+│  🔴 System Design            4 notes  > │
+│     Needs work · 34% · struggling       │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  ✨ Suggested new concepts (3)          │
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │ 🆕 Docker Basics           4 notes ││
+│  │ [Track] [Ignore]                   ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  Archived (2)                 [Show ▾]  │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Components:**
+
+1. **Search input**
+   - Full-text search across concept names
+   - Filters the concept list as user types
+
+2. **Tracked concepts list**
+   - Header shows count of tracked concepts
+   - Status indicator: 🟢 mastered (>85%), 🟡 learning (40-85%), 🔴 needs work (<40%)
+   - Concept name (bold) + note count
+   - Status + mastery % + timing info (muted)
+   - Chevron (>) indicates tappable for detail view
+   - Tap concept → navigate to Concept Detail View (6.1)
+
+3. **Suggested concepts section**
+   - Concepts detected by pipeline but not yet tracked
+   - Card style with dashed border
+   - Shows concept name + note count
+   - Two action buttons: Track (primary) / Ignore (secondary)
+   - Track → moves to tracked list with animation
+   - Ignore → card fades out, concept hidden from suggestions
+
+4. **Archived concepts section**
+   - Collapsed by default, shows count
+   - Tap "Show" → expands to show archived concepts
+   - Archived concepts shown with ⚪ indicator
+   - Can be unarchived from detail view
+
+**Interactions:**
+- Scroll vertical for long concept lists
+- Swipe left on concept → reveal Archive button
+- Tap concept → navigate to Concept Detail View (6.1)
+- Pull down → refresh concept suggestions
+
+---
+
+### Screen 6.1: Concept Detail View
+
+```
+┌─────────────────────────────────────────┐
+│  [← Back]                               │
+├─────────────────────────────────────────┤
+│                                         │
+│  🏌️ Golf Swing                          │
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │ 🟡 Learning · 65% mastery          ││
+│  │ Due today · 12 reviews total       ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  📄 Notes in this concept (5)           │
+│                                         │
+│  golf-swing-basics.md              [✕]  │
+│  putting-technique.md              [✕]  │
+│  driving-distance.md               [✕]  │
+│  iron-play.md                      [✕]  │
+│  short-game-tips.md                [✕]  │
+│                                         │
+│  [+ Add notes...]                       │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  Actions                                │
+│                                         │
+│  [▶ Start Quiz]                         │
+│  [✏️ Rename concept]                    │
+│  [📦 Archive concept]                   │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Components:**
+
+1. **Back button**
+   - Returns to Concepts Tab (6)
+   - Slide transition back
+
+2. **Concept header**
+   - Large concept name with emoji
+   - Status card showing mastery level, percentage, timing, review count
+
+3. **Notes list**
+   - Header shows count of notes in concept
+   - Each note shows filename
+   - Remove button [✕] on right side
+   - Tap note filename → open note in Obsidian editor
+   - Tap [✕] → confirm dialog, then remove note from concept
+
+4. **Add notes button**
+   - Opens note picker modal
+   - Search or browse to select notes
+   - Selected notes added to concept
+
+5. **Action buttons**
+   - **Start Quiz**: Primary button, starts quiz for this concept only
+   - **Rename concept**: Opens inline edit for concept name
+   - **Archive concept**: Moves to archived section (with confirm)
+   - If archived: shows "Unarchive concept" instead
+
+**Interactions:**
+- Tap note → opens in Obsidian editor
+- Tap [✕] → confirm dialog "Remove from concept?"
+- Tap Add notes → modal with note search/picker
+- Swipe left on note → reveal remove button
+- Start Quiz → transitions to Quiz Flow (Screen 3)
+
+**Transitions:**
+- Slide in from right when entering
+- Back → slide back to Concepts Tab
+
+---
+
+## Screen 7: Activity Tab
+
+```
+┌─────────────────────────────────────────┐
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
+├─────────────────────────────────────────┤
+│                                         │
+│  📊 Activity                            │
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │ 🔥 12-day streak                   ││
+│  │ 73% overall mastery                ││
+│  └─────────────────────────────────────┘│
 │                                         │
 │  Activity (last 30 days)                │
-│  ┌─────────────────────────────────┐   │
-│  │ ▁▂▃▁▅▂▁▃▄▂▅▆▃▂▁▄▅▃▂▁▃▄▅▆▇▅▄▃▂▅ │   │
-│  │ Nov                         Dec │   │
-│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────────┐│
+│  │ ▁▂▃▁▅▂▁▃▄▂▅▆▃▂▁▄▅▃▂▁▃▄▅▆▇▅▄▃▂▅    ││
+│  │ Nov                         Dec    ││
+│  └─────────────────────────────────────┘│
 │                                         │
-│  Concepts                               │
+│  ─────────────────────────────────────  │
 │                                         │
-│  🟢 React Hooks                         │
-│     Mastered · reviewed 2 days ago      │
+│  Recent changes                         │
 │                                         │
-│  🟡 Golf Swing                          │
-│     Learning · due today                │
+│  📥 Today                               │
+│  ┌─────────────────────────────────────┐│
+│  │ + Note added to "React Hooks"      ││
+│  │   react-context-api.md             ││
+│  │                     [Reassign ▾]   ││
+│  └─────────────────────────────────────┘│
 │                                         │
-│  🟡 TypeScript Generics                 │
-│     Learning · due in 3 days            │
+│  ┌─────────────────────────────────────┐│
+│  │ ✏️ Concept renamed                  ││
+│  │   "JS Patterns" → "Design Patterns"││
+│  │                          [Undo]    ││
+│  └─────────────────────────────────────┘│
 │                                         │
-│  🔴 System Design                       │
-│     Needs work · struggling             │
+│  📥 Yesterday                           │
+│  ┌─────────────────────────────────────┐│
+│  │ 🆕 New concept detected            ││
+│  │   "Docker Basics" (4 notes)        ││
+│  │            [Track] [Ignore]        ││
+│  └─────────────────────────────────────┘│
 │                                         │
-│  ⚪ Cooking basics                      │
-│     Archived                            │
+│  ┌─────────────────────────────────────┐│
+│  │ − Note removed from "Golf"         ││
+│  │   old-golf-notes.md                ││
+│  │                     [Reassign ▾]   ││
+│  └─────────────────────────────────────┘│
 │                                         │
 └─────────────────────────────────────────┘
 ```
@@ -731,7 +1003,7 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
 
 1. **Stats card**
    - Streak with fire emoji
-   - Mastery percentage
+   - Overall mastery percentage
 
 2. **Activity graph**
    - GitHub-style contribution graph (mini bar chart)
@@ -739,24 +1011,35 @@ See also: [[Recall - Obsidian Quiz Plugin PRD]]
    - Height = quiz volume that day
    - Hover/tap bar → tooltip with date and count
 
-3. **Concept list**
-   - Status indicator: 🟢 mastered, 🟡 learning, 🔴 needs work, ⚪ archived
-   - Concept name (bold)
-   - Status + timing info (muted)
-   - Tap concept → expand to show options (Quiz, Archive, Rename)
+3. **Recent changes section**
+   - Grouped by day (Today, Yesterday, older dates)
+   - Card style for each change event
+   - Event types:
+     - **Note added**: Shows note filename and target concept, with Reassign dropdown
+     - **Concept renamed**: Shows old → new name, with Undo button
+     - **New concept detected**: Shows concept name and note count, Track/Ignore buttons
+     - **Note removed**: Shows note filename and source concept, with Reassign dropdown
+
+4. **Action buttons per event**
+   - **Reassign**: Dropdown to move note to different concept
+   - **Undo**: Reverts the rename (available for limited time)
+   - **Track**: Adds concept to tracked list
+   - **Ignore**: Hides concept from suggestions
 
 **Interactions:**
-- Scroll vertical for long concept lists
-- Swipe left on concept → reveal Archive button
-- Tap concept → expand inline with action buttons
+- Scroll vertical for long activity list
+- Tap Reassign → dropdown with concept list
+- Tap Track → concept moves to tracked list, card fades
+- Tap Ignore → card fades out
+- Tap Undo → reverts change, card updates to show "Reverted"
 
 ---
 
-## Screen 7: Settings Tab
+## Screen 8: Settings Tab
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]  │
 ├─────────────────────────────────────────┤
 │                                         │
 │  ⚙️ Settings                            │

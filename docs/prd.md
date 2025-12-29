@@ -111,7 +111,14 @@ Netflix-style selection: AI analyzes vault, suggests concepts, user picks what t
 │  🎯 Recall                   [⚙️]       │
 ├─────────────────────────────────────────┤
 │                                         │
-│  💡 Your concepts:                      │
+│  ⚡ Quick Start:                        │
+│  [📅 Last week's notes (12)]            │
+│  [📚 All tracked concepts]              │
+│  [🔄 Due for review (5 concepts)]       │
+│                                         │
+│  ─────────────────────────────────────  │
+│                                         │
+│  💡 By Concept:                         │
 │  [🏌️ Golf — due today          ▶]      │
 │  [⚛️ React — 2 new notes        ▶]      │
 │  [📊 PM — 5 days ago            ▶]      │
@@ -121,7 +128,9 @@ Netflix-style selection: AI analyzes vault, suggests concepts, user picks what t
 │                            [Add] [Skip] │
 │                                         │
 │  ─────────────────────────────────────  │
+│                                         │
 │  🔍 [Quiz me on...]                     │
+│  📄 [Quiz specific notes...]            │
 │                                         │
 │  ─────────────────────────────────────  │
 │  📈 7-day streak · 73% mastery          │
@@ -129,10 +138,18 @@ Netflix-style selection: AI analyzes vault, suggests concepts, user picks what t
 └─────────────────────────────────────────┘
 ```
 
-- One-click to start any suggested quiz
-- **Emerging concepts surface here** — AI notices note clusters and proposes new concepts to track
-- **"Quiz me on..." input** — semantic search for any topic (see flow below)
-- Progress summary at bottom (secondary)
+**Quick Start** — One-click access to common quiz patterns:
+- **Last week's notes**: Quiz notes created or modified in the last 7 days (toggle between creation/modification date)
+- **All tracked concepts**: Mixed review sampling from all tracked concepts
+- **Due for review**: Concepts prioritized by spaced repetition schedule
+
+**By Concept** — Traditional concept-based entry for focused review
+
+**Emerging concepts** — AI notices note clusters and proposes new concepts to track
+
+**Quiz me on...** — Semantic search for any topic (see flow below)
+
+**Quiz specific notes** — Direct note selection via file picker for note-centric workflows (see flow below)
 
 ### "Quiz me on..." Flow
 
@@ -198,6 +215,58 @@ User enters a natural language query (e.g., "agentic app development"):
 
 - Shows warning + helpful alternatives
 - Related topics are clickable → restart flow with that topic
+
+### "Quiz specific notes..." Flow
+
+User selects specific notes directly (via file picker or current active note):
+
+```
+┌─────────────────────────────────────────┐
+│  📄 Quiz Specific Notes                 │
+├─────────────────────────────────────────┤
+│                                         │
+│  Select notes to quiz:                  │
+│                                         │
+│  🔍 [Search notes...]                   │
+│                                         │
+│  📂 Recent notes:                       │
+│  ┌─────────────────────────────────────┐│
+│  │ [✓] claude-agent-sdk.md            ││
+│  │ [✓] react-hooks-guide.md           ││
+│  │ [ ] meeting-notes-dec.md           ││
+│  │ [ ] random-thoughts.md             ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  📅 Or filter by time:                  │
+│  [Last 3 days] [Last week] [Last month] │
+│  Toggle: [Created ○] [Modified ●]       │
+│                                         │
+│  ─────────────────────────────────────  │
+│  Selected: 2 notes                      │
+│  [▶ Start Quiz]                         │
+└─────────────────────────────────────────┘
+```
+
+- **Direct selection**: Pick specific notes via search or browse
+- **Time-based filter**: Quick filter by creation or modification date
+- **Date toggle**: Switch between created vs. modified date filter
+- Questions generated on-the-fly from selected notes, independent of concepts
+
+### Quiz Entry Points Summary
+
+Users can start a quiz through multiple paths:
+
+| Entry Point | Use Case | How It Works |
+|-------------|----------|--------------|
+| **Quick Start: Last week's notes** | "What did I learn recently?" | Quizzes notes from last 7 days |
+| **Quick Start: All tracked concepts** | "Mixed review session" | Randomly samples from all tracked concepts |
+| **Quick Start: Due for review** | "What's getting stale?" | Prioritizes concepts by spaced repetition schedule |
+| **By Concept** | "Deep dive on one topic" | Traditional concept-based quiz |
+| **Quiz me on...** | "I want to explore a topic" | Semantic search → concept discovery |
+| **Quiz specific notes** | "Test me on these exact notes" | Direct note selection via picker |
+
+The Quick Start options provide **one-click** access to common quiz patterns.
+"Quiz specific notes" enables **note-centric** workflows independent of concepts.
 
 ---
 
@@ -308,7 +377,7 @@ Post-quiz focuses on performance feedback. Concept discovery happens on the home
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Quiz]  [Progress]  [Settings]         │
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]   │
 ├─────────────────────────────────────────┤
 │  Your Concepts                          │
 │                                         │
@@ -324,6 +393,38 @@ Post-quiz focuses on performance feedback. Concept discovery happens on the home
 ```
 
 Actions: Rename, merge, archive concepts
+
+### Concept Detail View (Note Management)
+
+Clicking a concept opens a detail view where users can manage notes:
+
+```
+┌─────────────────────────────────────────┐
+│  ← Back     React Hooks                 │
+├─────────────────────────────────────────┤
+│  📈 Mastery: 73%    🔄 Due: Tomorrow    │
+│                                         │
+│  📄 Notes (23):                         │
+│  ┌─────────────────────────────────────┐│
+│  │ ✓ useState-guide.md           [✕]  ││
+│  │ ✓ useEffect-patterns.md       [✕]  ││
+│  │ ✓ custom-hooks.md             [✕]  ││
+│  │   + 20 more...              [▼]    ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  [+ Add notes...]                       │
+│                                         │
+│  ─────────────────────────────────────  │
+│  [▶ Start Quiz]  [✏️ Rename]  [📦 Archive]│
+└─────────────────────────────────────────┘
+```
+
+**Note Management Actions**:
+- **Remove note [✕]**: Remove note from this concept (moves to unassigned pool)
+- **Add notes [+]**: Search/browse vault to add notes to concept
+- **Expand list [▼]**: View all notes in the concept
+
+**Why this matters**: AI clustering is never perfect. Users need a fallback to fine-tune which notes belong to each concept. Manual overrides persist forever — even when re-clustering runs, user edits are respected.
 
 ---
 
@@ -346,6 +447,67 @@ Actions: Rename, merge, archive concepts
 - Sidebar badge showing due items
 - Optional system notifications
 - Configurable cadence (daily/every 2 days/weekly)
+
+---
+
+## Concept Evolution & Activity
+
+Auto-evolving topics are powerful, but users need visibility into changes. The Activity tab shows what changed in the most recent pipeline run, with options to review and override.
+
+### Activity Tab
+
+```
+┌─────────────────────────────────────────┐
+│  [Quiz]  [Concepts]  [Activity]  [⚙️]   │
+├─────────────────────────────────────────┤
+│  Recent Changes (Last pipeline run)     │
+│                                         │
+│  📥 Notes added to concepts:            │
+│  ┌─────────────────────────────────────┐│
+│  │ claude-code-tips.md                 ││
+│  │ → Added to "AI Development"         ││
+│  │   [Move to different concept ▼]     ││
+│  ├─────────────────────────────────────┤│
+│  │ golf-short-game.md                  ││
+│  │ → Added to "Golf Basics"            ││
+│  │   [Move to different concept ▼]     ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  🔄 Concepts evolved:                   │
+│  ┌─────────────────────────────────────┐│
+│  │ "TypeScript" → "TypeScript Generics"││
+│  │   Reason: 8 notes about generics    ││
+│  │   [Undo rename]                     ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  🆕 New concepts detected:              │
+│  ┌─────────────────────────────────────┐│
+│  │ "Short Game Techniques" (4 notes)   ││
+│  │   [Track] [Ignore]                  ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  📤 Notes removed from concepts:        │
+│  ┌─────────────────────────────────────┐│
+│  │ random-thoughts.md                  ││
+│  │ ← Removed from "AI Development"     ││
+│  │   (marked as misfit)                ││
+│  │   [Reassign to concept ▼]           ││
+│  └─────────────────────────────────────┘│
+└─────────────────────────────────────────┘
+```
+
+### Activity Actions
+
+- **Move to different concept**: Reassign a note that was placed incorrectly
+- **Undo rename**: Revert an LLM-suggested concept name change
+- **Track / Ignore**: Explicitly confirm or dismiss new concept suggestions
+- **Reassign misfit**: Recover notes that were incorrectly marked as misfits
+
+### Why Activity Matters
+
+- **Transparency**: Users see exactly how their vault is being organized
+- **Control**: One-click corrections when AI makes mistakes
+- **Trust**: Understanding changes builds confidence in the system
 
 ---
 
@@ -401,8 +563,10 @@ The AI decides:
 - [ ] Basic panel UI: search → quiz → answer → feedback
 - [ ] Record responses (right/wrong/skipped/flagged)
 - [ ] Link back to source notes
+- [ ] **"Quiz specific notes" entry point** (note picker → quiz)
+- [ ] **"Last week's notes" quick start button** (time-based filtering)
 
-**Success criteria**: Quiz yourself on golf notes and questions feel relevant and useful.
+**Success criteria**: Quiz yourself on golf notes and questions feel relevant and useful. Can also quiz specific notes directly.
 
 ### Phase 2: Learning Intelligence
 *Can we make each quiz smarter than the last?*
@@ -411,6 +575,8 @@ The AI decides:
 - [ ] Spaced repetition logic (Ebbinghaus intervals)
 - [ ] "Due for review" suggestions
 - [ ] Struggling concept detection
+- [ ] **Concept detail view with note list**
+- [ ] **Remove note from concept action** (manual override)
 
 ### Phase 3: Engagement & Habit
 *Will users come back daily?*
@@ -419,6 +585,9 @@ The AI decides:
 - [ ] Post-quiz summary with insights
 - [ ] Streaks and activity tracking
 - [ ] "I've mastered this" and flagging UI
+- [ ] **"All tracked concepts" quick start**
+- [ ] **"Due for review" quick start**
+- [ ] **Add note to concept action** (manual override)
 
 ### Phase 4: Onboarding & Discovery
 *Can new users get value in 2 minutes?*
@@ -427,6 +596,9 @@ The AI decides:
 - [ ] Netflix-style concept selection
 - [ ] Progress visualization (GitHub-style)
 - [ ] Concept management (rename, archive, merge)
+- [ ] **Activity/Changelog tab** (shows most recent pipeline changes)
+- [ ] **Note movement tracking and reassignment**
+- [ ] **Concept rename undo**
 
 ### Phase 5: Push Mechanisms
 - [ ] Sidebar badge for due items

@@ -218,11 +218,43 @@ interface CachedNoteEmbedding {
   "quizzabilityScore": 0.85,
   "clusterId": "cluster_xyz",
   "noteIds": ["notes/react/hooks-guide.md", "notes/react/useState.md"],
+  "manualOverrides": {
+    "addedNotes": ["notes/react/custom-hooks.md"],
+    "removedNotes": ["notes/react/old-class-component.md"]
+  },
   "metadata": {
     "createdAt": "2024-12-01",
     "lastUpdated": "2024-12-20"
   },
   "evolutionHistory": []
+}
+```
+
+**Manual Overrides:**
+
+Users can manually add or remove notes from concepts. These overrides persist forever, even across re-clustering:
+
+```typescript
+interface ManualOverrides {
+  addedNotes: string[];    // Notes manually added by user
+  removedNotes: string[];  // Notes manually removed by user
+}
+
+// Effective noteIds = (clusterNoteIds ∪ addedNotes) - removedNotes
+function getEffectiveNoteIds(concept: TrackedConcept): string[] {
+  const fromCluster = new Set(concept.noteIds);
+
+  // Add manually added notes
+  for (const noteId of concept.manualOverrides?.addedNotes || []) {
+    fromCluster.add(noteId);
+  }
+
+  // Remove manually removed notes
+  for (const noteId of concept.manualOverrides?.removedNotes || []) {
+    fromCluster.delete(noteId);
+  }
+
+  return [...fromCluster];
 }
 ```
 
@@ -254,13 +286,15 @@ For small changes (<5% of vault):
 2. Project using existing UMAP transform
 3. Assign to nearest cluster centroid
 4. Remove deleted notes from clusters
+5. **Apply manual overrides** (user edits always win)
 
-For large changes (≥5%): Full re-cluster.
+For large changes (≥5%): Full re-cluster, then apply manual overrides.
 
 ```typescript
 async function incrementalUpdate(
   changes: { added: string[]; modified: string[]; deleted: string[] },
   existingClusters: Cluster[],
+  trackedConcepts: TrackedConcept[],
   embeddingProvider: IEmbeddingProvider
 ): Promise<Cluster[]> {
   // 1. Embed new/modified notes
@@ -271,8 +305,15 @@ async function incrementalUpdate(
   // 2. Calculate cluster centroids
   const centroids = calculateCentroids(existingClusters);
 
-  // 3. Assign to nearest centroid
+  // 3. Assign to nearest centroid (skip manually removed notes)
+  const allRemovedNotes = new Set(
+    trackedConcepts.flatMap(c => c.manualOverrides?.removedNotes || [])
+  );
+
   for (const embedding of newEmbeddings) {
+    // Don't auto-assign notes that user manually removed from a concept
+    if (allRemovedNotes.has(embedding.notePath)) continue;
+
     const nearest = findNearestCentroid(embedding, centroids, 0.5);
     if (nearest) {
       nearest.noteIds.push(embedding.notePath);
@@ -285,6 +326,26 @@ async function incrementalUpdate(
   }
 
   return existingClusters.filter(c => c.noteIds.length > 0);
+}
+
+// After clustering, apply manual overrides to tracked concepts
+function applyManualOverrides(
+  concept: TrackedConcept,
+  newClusterNoteIds: string[]
+): string[] {
+  const effective = new Set(newClusterNoteIds);
+
+  // Always include manually added notes
+  for (const noteId of concept.manualOverrides?.addedNotes || []) {
+    effective.add(noteId);
+  }
+
+  // Always exclude manually removed notes
+  for (const noteId of concept.manualOverrides?.removedNotes || []) {
+    effective.delete(noteId);
+  }
+
+  return [...effective];
 }
 ```
 
@@ -426,7 +487,141 @@ Each concept tracks its evolution for debugging:
 }
 ```
 
-### 1.8 Cost & Performance
+### 1.8 Activity Changelog
+
+The Activity tab shows users what changed in the most recent pipeline run, enabling transparency and manual corrections.
+
+#### Storage
+
+```
+.recall/
+└── activity/
+    └── latest.json    # Most recent pipeline run changes
+```
+
+**Activity Log Structure:**
+
+```json
+{
+  "version": 1,
+  "pipelineRunId": "run_abc123",
+  "timestamp": 1703500000000,
+  "noteMovements": [
+    {
+      "noteId": "notes/react/hooks.md",
+      "fromConceptId": null,
+      "toConceptId": "concept_react",
+      "reason": "clustering",
+      "conceptName": "React Hooks"
+    },
+    {
+      "noteId": "notes/react/old.md",
+      "fromConceptId": "concept_react",
+      "toConceptId": null,
+      "reason": "misfit",
+      "conceptName": "React Hooks"
+    }
+  ],
+  "conceptChanges": [
+    {
+      "conceptId": "concept_ts",
+      "changeType": "renamed",
+      "oldName": "TypeScript",
+      "newName": "TypeScript Generics",
+      "reason": "8 notes about generics added"
+    }
+  ],
+  "newConcepts": [
+    {
+      "conceptId": "concept_new",
+      "name": "Short Game Techniques",
+      "noteCount": 4,
+      "status": "pending"
+    }
+  ]
+}
+```
+
+#### Tracking Note Movements
+
+```typescript
+interface NoteMovement {
+  noteId: string;
+  fromConceptId: string | null;  // null = unassigned/noise
+  toConceptId: string | null;    // null = removed/misfit
+  reason: 'clustering' | 'manual' | 'misfit' | 'dissolved';
+  conceptName?: string;          // For display
+  timestamp: number;
+}
+
+function trackNoteMovements(
+  oldConcepts: TrackedConcept[],
+  newConcepts: TrackedConcept[]
+): NoteMovement[] {
+  const movements: NoteMovement[] = [];
+
+  // Build lookup: noteId -> conceptId
+  const oldNoteMap = buildNoteToConceptMap(oldConcepts);
+  const newNoteMap = buildNoteToConceptMap(newConcepts);
+
+  // Find notes that moved
+  const allNotes = new Set([...oldNoteMap.keys(), ...newNoteMap.keys()]);
+
+  for (const noteId of allNotes) {
+    const oldConceptId = oldNoteMap.get(noteId) || null;
+    const newConceptId = newNoteMap.get(noteId) || null;
+
+    if (oldConceptId !== newConceptId) {
+      movements.push({
+        noteId,
+        fromConceptId: oldConceptId,
+        toConceptId: newConceptId,
+        reason: newConceptId ? 'clustering' : 'misfit',
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  return movements;
+}
+```
+
+#### User Actions from Activity Tab
+
+| Action | Effect |
+|--------|--------|
+| Move note to different concept | Adds to target concept's `manualOverrides.addedNotes`, removes from source |
+| Undo concept rename | Reverts `canonicalName` to previous value |
+| Track new concept | Sets `status: 'tracked'` |
+| Ignore new concept | Sets `status: 'ignored'`, won't show again |
+| Reassign misfit | Adds to target concept's `manualOverrides.addedNotes` |
+
+```typescript
+async function reassignNote(
+  noteId: string,
+  fromConceptId: string | null,
+  toConceptId: string
+): Promise<void> {
+  // Remove from old concept (if any)
+  if (fromConceptId) {
+    const fromConcept = await loadConcept(fromConceptId);
+    fromConcept.manualOverrides.removedNotes.push(noteId);
+    await saveConcept(fromConcept);
+  }
+
+  // Add to new concept
+  const toConcept = await loadConcept(toConceptId);
+  toConcept.manualOverrides.addedNotes.push(noteId);
+
+  // Remove from removedNotes if it was there
+  toConcept.manualOverrides.removedNotes =
+    toConcept.manualOverrides.removedNotes.filter(id => id !== noteId);
+
+  await saveConcept(toConcept);
+}
+```
+
+### 1.9 Cost & Performance
 
 **Embedding Cost (100k notes, ~62.5M tokens):**
 - OpenAI Batch API: **$0.63**
@@ -448,9 +643,11 @@ Each concept tracks its evolution for debugging:
 ### Overview
 
 ```
-Concept with 1,000 notes
+Quiz Entry Point (one of many)
+     ↓
+Notes to quiz
      ↓  (Score each note using history)
-1,000 scored notes
+Scored notes
      ↓  (Stratified sampling)
 15 selected notes
      ↓  (Check question cache)
@@ -461,7 +658,148 @@ Concept with 1,000 notes
 10 final questions
 ```
 
-### 2.1 Note Selection
+### 2.1 Quiz Entry Points
+
+Users can start quizzes through multiple paths. Each entry point produces a set of notes to quiz:
+
+| Entry Point | Input | Note Selection |
+|-------------|-------|----------------|
+| **By Concept** | `conceptId` | Get effective notes from concept |
+| **Quick Start: All Concepts** | — | Sample from all tracked concepts |
+| **Quick Start: Due for Review** | — | Filter by spaced rep schedule |
+| **Quick Start: Last Week** | `dateFilter` | Filter by creation/modification date |
+| **Quiz Specific Notes** | `noteIds[]` | Use provided notes directly |
+| **Quiz Me On...** | `searchQuery` | Semantic search → notes |
+
+#### Entry Point: By Concept
+
+```typescript
+async function getNotesForConcept(conceptId: string): Promise<string[]> {
+  const concept = await loadConcept(conceptId);
+  return getEffectiveNoteIds(concept); // Applies manual overrides
+}
+```
+
+#### Entry Point: Time-Based (Last Week's Notes)
+
+```typescript
+interface TimeFilter {
+  range: 'last_3_days' | 'last_week' | 'last_2_weeks' | 'last_month';
+  dateType: 'created' | 'modified';
+}
+
+async function getNotesForTimeFilter(
+  filter: TimeFilter,
+  vault: IVaultProvider
+): Promise<string[]> {
+  const cutoff = getTimeCutoff(filter.range);
+  const files = await vault.listMarkdownFiles();
+
+  return files
+    .filter(file => {
+      const date = filter.dateType === 'created'
+        ? file.stat.ctime
+        : file.stat.mtime;
+      return date >= cutoff;
+    })
+    .map(file => file.path);
+}
+
+function getTimeCutoff(range: TimeFilter['range']): number {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+
+  switch (range) {
+    case 'last_3_days': return now - 3 * day;
+    case 'last_week': return now - 7 * day;
+    case 'last_2_weeks': return now - 14 * day;
+    case 'last_month': return now - 30 * day;
+  }
+}
+```
+
+#### Entry Point: Direct Note Selection
+
+```typescript
+async function getNotesForDirectSelection(
+  noteIds: string[],
+  vault: IVaultProvider
+): Promise<string[]> {
+  // Validate notes exist
+  const existing = await Promise.all(
+    noteIds.map(async id => ({
+      id,
+      exists: await vault.exists(id)
+    }))
+  );
+
+  return existing.filter(n => n.exists).map(n => n.id);
+}
+```
+
+#### Entry Point: Due for Review
+
+```typescript
+async function getNotesDueForReview(
+  concepts: TrackedConcept[],
+  history: QuizHistory
+): Promise<string[]> {
+  const dueNotes: string[] = [];
+
+  for (const concept of concepts) {
+    const notes = getEffectiveNoteIds(concept);
+
+    for (const noteId of notes) {
+      const h = history.getForNote(noteId);
+      if (isNoteDue(h)) {
+        dueNotes.push(noteId);
+      }
+    }
+  }
+
+  return dueNotes;
+}
+
+function isNoteDue(h: ComputedNoteHistory | null): boolean {
+  if (!h) return true; // Never quizzed = due
+
+  const intervals = [1, 3, 7, 14, 30, 60, 120]; // days
+  const targetInterval = intervals[Math.min(h.correctStreak, 6)];
+  const daysSinceQuiz = (Date.now() - h.lastQuizzed) / (1000 * 60 * 60 * 24);
+
+  return daysSinceQuiz >= targetInterval;
+}
+```
+
+#### Unified Quiz Initiation
+
+```typescript
+type QuizEntryPoint =
+  | { type: 'concept'; conceptId: string }
+  | { type: 'all_concepts' }
+  | { type: 'due_for_review' }
+  | { type: 'time_filter'; filter: TimeFilter }
+  | { type: 'specific_notes'; noteIds: string[] }
+  | { type: 'search'; query: string };
+
+async function initializeQuiz(
+  entry: QuizEntryPoint,
+  deps: QuizDependencies
+): Promise<QuizSession> {
+  // 1. Get notes based on entry point
+  const noteIds = await resolveNotesForEntry(entry, deps);
+
+  // 2. Score and select notes (same as before)
+  const selected = await selectNotes(noteIds, deps.history);
+
+  // 3. Generate questions (same as before)
+  const questions = await generateQuestions(selected, deps.llm);
+
+  return { questions, sourceEntry: entry };
+}
+```
+
+### 2.2 Note Selection (Scoring)
 
 Not all notes are equal. We score each note based on multiple factors:
 
@@ -606,7 +944,7 @@ function selectNotes(concept: Concept, targetCount: number = 15): Note[] {
 }
 ```
 
-### 2.2 Question Generation
+### 2.3 Question Generation
 
 #### Batched LLM Generation
 
@@ -691,7 +1029,7 @@ async function getQuestionsWithFallback(notes: Note[]): Promise<Question[]> {
 }
 ```
 
-### 2.3 Storage
+### 2.4 Storage
 
 ```
 .recall/
@@ -721,7 +1059,7 @@ async function getQuestionsWithFallback(notes: Note[]): Promise<Question[]> {
 }
 ```
 
-### 2.4 When the Vault Changes
+### 2.5 When the Vault Changes
 
 **Cache Invalidation Rules:**
 
