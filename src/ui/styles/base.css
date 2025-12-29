@@ -1,8 +1,12 @@
 /*
  * Base styles for the Recall plugin
+ *
+ * NOTE: This file is for reference/documentation only.
+ * All styles are loaded from the root styles.css file which
+ * Obsidian auto-loads for plugins.
+ *
+ * See: /styles.css for the actual styles used at runtime.
  */
-
-@import './variables.css';
 
 .recall-view-container {
   width: 100%;
@@ -22,4 +26,14 @@
 .recall-view-container button {
   font-family: inherit;
   cursor: var(--cursor);
+}
+
+/* Loading state */
+.recall-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--recall-text-muted);
+  font-size: var(--recall-font-size-sm);
 }

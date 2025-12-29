@@ -25,10 +25,16 @@ export class RecallView extends ItemView {
     container.empty();
     container.addClass('recall-view-container');
 
+    // Show loading state while React loads
+    const loadingEl = container.createDiv({ cls: 'recall-loading' });
+    loadingEl.createSpan({ text: 'Loading Recall...' });
+
     // Dynamic import to ensure React is loaded
     const { createRoot } = await import('react-dom/client');
     const { RecallApp } = await import('@/ui/RecallApp');
 
+    // Remove loading state and mount React
+    loadingEl.remove();
     this.root = createRoot(container as HTMLElement);
     this.root.render(<RecallApp />);
   }

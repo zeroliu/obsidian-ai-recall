@@ -89,3 +89,13 @@
   font-family: inherit;
   cursor: var(--cursor);
 }
+
+/* Loading state */
+.recall-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--recall-text-muted);
+  font-size: var(--recall-font-size-sm);
+}

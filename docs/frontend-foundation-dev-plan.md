@@ -2,6 +2,7 @@
 created: 2025-12-29
 updated: 2025-12-29
 ---
+
 # Frontend Foundation Dev Plan
 
 This plan covers Phase 1 of the frontend implementation: setting up React, Obsidian integration, CSS foundations, and validating the entire pipeline works.
@@ -15,6 +16,7 @@ See also: [[frontend-architecture]]
 **Goal**: Render a minimal React component inside Obsidian's right sidebar with proper theming.
 
 **Success Criteria**:
+
 - React 18 renders inside an Obsidian ItemView
 - CSS variables from Obsidian theme are accessible
 - View can be opened via ribbon icon and command palette
@@ -28,15 +30,19 @@ See also: [[frontend-architecture]]
 ## Task 1: Install React Dependencies
 
 ### Description
+
 Add React 18 and type definitions to the project.
 
 ### Steps
+
 1. Install production dependencies:
+
    ```bash
    npm install react@^18.3.0 react-dom@^18.3.0
    ```
 
 2. Install dev dependencies:
+
    ```bash
    npm install -D @types/react@^18.3.0 @types/react-dom@^18.3.0
    ```
@@ -52,6 +58,7 @@ Add React 18 and type definitions to the project.
    ```
 
 ### Verification
+
 - `npm run typecheck` passes
 - No new TypeScript errors
 
@@ -60,12 +67,15 @@ Add React 18 and type definitions to the project.
 ## Task 2: Update esbuild Configuration
 
 ### Description
+
 Ensure esbuild correctly compiles TSX files and bundles React.
 
 ### Steps
+
 1. Open `esbuild.config.mjs` (or equivalent build config)
 
 2. Verify/add these settings:
+
    ```javascript
    {
      entryPoints: ['src/main.ts'],
@@ -86,6 +96,7 @@ Ensure esbuild correctly compiles TSX files and bundles React.
 3. Verify React is NOT in the `external` array (it should be bundled)
 
 ### Verification
+
 - `npm run build` succeeds
 - `main.js` output contains React runtime code
 
@@ -94,10 +105,13 @@ Ensure esbuild correctly compiles TSX files and bundles React.
 ## Task 3: Create Directory Structure
 
 ### Description
+
 Set up the `src/ui/` folder structure for all frontend code.
 
 ### Steps
+
 Create the following directories:
+
 ```
 src/ui/
 ├── components/
@@ -114,12 +128,14 @@ src/ui/
 ```
 
 ### Commands
+
 ```bash
 mkdir -p src/ui/components/{layout,quiz,concepts,activity,settings,shared}
 mkdir -p src/ui/{hooks,context,types,styles}
 ```
 
 ### Verification
+
 - Directory structure exists
 - No build errors
 
@@ -128,10 +144,14 @@ mkdir -p src/ui/{hooks,context,types,styles}
 ## Task 4: Create CSS Variables Foundation
 
 ### Description
-Create the CSS variable mapping file that bridges Obsidian's theme to our components.
+
+Create the CSS variable mapping that bridges Obsidian's theme to our components.
+
+**Important**: Obsidian auto-loads `styles.css` from the plugin root. All CSS must be placed in this file. The `src/ui/styles/` directory contains reference files for documentation purposes.
 
 ### Steps
-1. Create `src/ui/styles/variables.css`:
+
+1. Add CSS variables to root `styles.css`:
 
 ```css
 /*
@@ -203,14 +223,12 @@ Create the CSS variable mapping file that bridges Obsidian's theme to our compon
 }
 ```
 
-2. Create `src/ui/styles/base.css`:
+2. Add base styles to root `styles.css` (after variables):
 
 ```css
 /*
  * Base styles for the Recall plugin
  */
-
-@import './variables.css';
 
 .recall-view-container {
   width: 100%;
@@ -231,34 +249,45 @@ Create the CSS variable mapping file that bridges Obsidian's theme to our compon
   font-family: inherit;
   cursor: var(--cursor);
 }
+
+/* Loading state */
+.recall-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--recall-text-muted);
+  font-size: var(--recall-font-size-sm);
+}
 ```
 
+3. Optionally create `src/ui/styles/base.css` as a reference file (for documentation purposes only).
+
 ### Verification
-- Files created without syntax errors
-- CSS imports work (verified in Task 7)
+
+- `styles.css` contains all variables and base styles
+- Plugin loads without CSS errors
 
 ---
 
 ## Task 5: Implement RecallView (Obsidian ItemView)
 
 ### Description
+
 Create the Obsidian ItemView that hosts the React application.
 
 ### Steps
-1. Create `src/adapters/obsidian/RecallView.ts`:
+
+1. Create `src/adapters/obsidian/RecallView.tsx`:
 
 ```typescript
-import { ItemView, WorkspaceLeaf } from 'obsidian';
-import type { Root } from 'react-dom/client';
+import {ItemView} from 'obsidian';
+import type {Root} from 'react-dom/client';
 
 export const RECALL_VIEW_TYPE = 'recall-view';
 
 export class RecallView extends ItemView {
   private root: Root | null = null;
-
-  constructor(leaf: WorkspaceLeaf) {
-    super(leaf);
-  }
 
   getViewType(): string {
     return RECALL_VIEW_TYPE;
@@ -279,10 +308,16 @@ export class RecallView extends ItemView {
     container.empty();
     container.addClass('recall-view-container');
 
-    // Dynamic import to ensure React is loaded
-    const { createRoot } = await import('react-dom/client');
-    const { RecallApp } = await import('@/ui/RecallApp');
+    // Show loading state while React loads
+    const loadingEl = container.createDiv({ cls: 'recall-loading' });
+    loadingEl.createSpan({ text: 'Loading Recall...' });
 
+    // Dynamic import to ensure React is loaded
+    const {createRoot} = await import('react-dom/client');
+    const {RecallApp} = await import('@/ui/RecallApp');
+
+    // Remove loading state and mount React
+    loadingEl.remove();
     this.root = createRoot(container as HTMLElement);
     this.root.render(<RecallApp />);
   }
@@ -296,77 +331,130 @@ export class RecallView extends ItemView {
 }
 ```
 
-2. Create a minimal `src/ui/RecallApp.tsx`:
+2. Create `src/ui/components/shared/ErrorBoundary.tsx` for error handling:
 
 ```tsx
 import React from 'react';
 
-// Import base styles
-import './styles/base.css';
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}
 
-export const RecallApp: React.FC = () => {
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    console.error('Recall plugin error:', error, errorInfo);
+  }
+
+  render(): React.ReactNode {
+    if (this.state.hasError) {
+      return this.props.fallback ?? (
+        <div style={{ padding: 'var(--recall-space-4)', color: 'var(--recall-error)' }}>
+          <h3>Something went wrong</h3>
+          <p>{this.state.error?.message}</p>
+          <button onClick={() => this.setState({ hasError: false, error: null })}>
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+```
+
+3. Create `src/ui/RecallApp.tsx` with ErrorBoundary:
+
+```tsx
+import type React from 'react';
+
+import { ErrorBoundary } from '@/ui/components/shared/ErrorBoundary';
+
+const RecallAppContent: React.FC = () => {
   return (
-    <div className="recall-app">
-      <div style={{ padding: 'var(--recall-space-4)' }}>
-        <h2 style={{
+    <div style={{padding: 'var(--recall-space-4)'}}>
+      <h2
+        style={{
           color: 'var(--recall-text)',
-          marginBottom: 'var(--recall-space-2)'
+          marginBottom: 'var(--recall-space-2)',
         }}>
-          Recall
-        </h2>
-        <p style={{ color: 'var(--recall-text-muted)' }}>
-          Plugin is loading...
-        </p>
-        <div style={{
+        Recall
+      </h2>
+      <p style={{color: 'var(--recall-text-muted)'}}>Plugin is loading...</p>
+      <div
+        style={{
           marginTop: 'var(--recall-space-4)',
           padding: 'var(--recall-space-3)',
           backgroundColor: 'var(--recall-bg-card)',
           borderRadius: 'var(--recall-radius-md)',
-          border: '1px solid var(--recall-border)'
+          border: '1px solid var(--recall-border)',
         }}>
-          <p style={{ color: 'var(--recall-accent)' }}>
-            ✓ React is working
-          </p>
-          <p style={{
+        <p style={{color: 'var(--recall-accent)'}}>React is working</p>
+        <p
+          style={{
             color: 'var(--recall-text-muted)',
             fontSize: 'var(--recall-font-size-sm)',
-            marginTop: 'var(--recall-space-2)'
+            marginTop: 'var(--recall-space-2)',
           }}>
-            CSS variables are mapped correctly
-          </p>
-        </div>
+          CSS variables are mapped correctly
+        </p>
       </div>
     </div>
+  );
+};
+
+export const RecallApp: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <div className="recall-app">
+        <RecallAppContent />
+      </div>
+    </ErrorBoundary>
   );
 };
 ```
 
 ### Verification
+
 - TypeScript compiles without errors
 - No JSX errors in editor
+- ErrorBoundary catches and displays errors gracefully
 
 ---
 
 ## Task 6: Register View in Main Plugin
 
 ### Description
+
 Update `main.ts` to register the RecallView and add ribbon/command access.
 
 ### Steps
+
 1. Add imports to `src/main.ts`:
 
 ```typescript
-import { RecallView, RECALL_VIEW_TYPE } from '@/adapters/obsidian/RecallView';
+import {RecallView, RECALL_VIEW_TYPE} from '@/adapters/obsidian/RecallView';
 ```
 
 2. Add to `onload()` method:
 
 ```typescript
 // Register the Recall view
-this.registerView(
-  RECALL_VIEW_TYPE,
-  (leaf) => new RecallView(leaf)
-);
+this.registerView(RECALL_VIEW_TYPE, (leaf) => new RecallView(leaf));
 
 // Add ribbon icon to open Recall
 this.addRibbonIcon('brain', 'Open Recall', () => {
@@ -417,6 +505,7 @@ this.app.workspace.detachLeavesOfType(RECALL_VIEW_TYPE);
 ```
 
 ### Verification
+
 - Plugin compiles without errors
 - Ribbon icon appears in Obsidian
 
@@ -425,9 +514,11 @@ this.app.workspace.detachLeavesOfType(RECALL_VIEW_TYPE);
 ## Task 7: Configure CSS Loading in esbuild
 
 ### Description
+
 Ensure CSS files are bundled and injected correctly.
 
 ### Steps
+
 1. Verify esbuild config handles CSS:
 
 ```javascript
@@ -462,6 +553,7 @@ if (!document.getElementById('recall-plugin-styles')) {
    - Copy contents from `src/ui/styles/base.css` and `variables.css`
 
 ### Verification
+
 - CSS variables are applied when view opens
 - Theme colors match Obsidian's current theme
 
@@ -470,16 +562,19 @@ if (!document.getElementById('recall-plugin-styles')) {
 ## Task 8: End-to-End Testing in Obsidian
 
 ### Description
+
 Verify the complete integration works in a real Obsidian vault.
 
 ### Test Environment Setup
 
 1. **Development vault**: Create or use a test vault
+
    ```bash
    mkdir -p ~/obsidian-test-vault/.obsidian/plugins/recall
    ```
 
 2. **Symlink plugin** (for rapid development):
+
    ```bash
    # From project root
    ln -sf "$(pwd)/main.js" ~/obsidian-test-vault/.obsidian/plugins/recall/main.js
@@ -495,29 +590,34 @@ Verify the complete integration works in a real Obsidian vault.
 ### Test Cases
 
 #### TC1: Plugin Loads Successfully
+
 1. Open Obsidian with test vault
 2. Go to Settings → Community Plugins
 3. Enable "Recall" plugin
 4. **Expected**: Plugin enables without errors
 
 #### TC2: Ribbon Icon Works
+
 1. Click the brain icon (🧠) in the left ribbon
 2. **Expected**: Right sidebar opens with Recall panel
 3. **Expected**: Panel shows "Recall" header and "React is working" message
 
 #### TC3: Command Palette Works
+
 1. Press `Cmd/Ctrl + P`
 2. Type "Recall"
 3. Select "Open Recall panel"
 4. **Expected**: Recall panel opens in right sidebar
 
 #### TC4: CSS Variables Apply Correctly
+
 1. Open Recall panel
 2. Check that text colors match Obsidian's theme
 3. **Expected**: Card background uses `--background-secondary`
 4. **Expected**: Accent text uses user's accent color
 
 #### TC5: Theme Switching
+
 1. Open Recall panel
 2. Go to Settings → Appearance
 3. Switch between Light and Dark themes
@@ -525,12 +625,14 @@ Verify the complete integration works in a real Obsidian vault.
 5. **Expected**: No flash or re-render needed
 
 #### TC6: View Persistence
+
 1. Open Recall panel
 2. Close Obsidian completely
 3. Reopen Obsidian
 4. **Expected**: Recall panel is still open in sidebar
 
 #### TC7: Clean Unmount
+
 1. Open Recall panel
 2. Close the panel (X button or drag away)
 3. Open Developer Console (`Cmd/Ctrl + Shift + I`)
@@ -538,6 +640,7 @@ Verify the complete integration works in a real Obsidian vault.
 5. **Expected**: No memory leak warnings
 
 #### TC8: Hot Reload (Development)
+
 1. With `npm run dev` running
 2. Open Recall panel in Obsidian
 3. Modify `RecallApp.tsx` (e.g., change text)
@@ -548,16 +651,19 @@ Verify the complete integration works in a real Obsidian vault.
 ### Debugging Tips
 
 **If view doesn't appear:**
+
 - Check Developer Console for errors
 - Verify `manifest.json` has correct `id` matching plugin folder name
 - Ensure plugin is enabled in Community Plugins
 
 **If styles don't apply:**
+
 - Verify `styles.css` exists in plugin folder
 - Check that class names match CSS selectors
 - Inspect element to see computed styles
 
 **If React crashes:**
+
 - Check for hydration errors (shouldn't happen with createRoot)
 - Verify all imports resolve correctly
 - Check for circular dependencies
@@ -566,14 +672,14 @@ Verify the complete integration works in a real Obsidian vault.
 
 ## Completion Checklist
 
-- [ ] React dependencies installed
-- [ ] esbuild compiles TSX correctly
-- [ ] Directory structure created
-- [ ] CSS variables file created
-- [ ] RecallView implemented
-- [ ] View registered in main.ts
-- [ ] CSS loading works
-- [ ] All 8 test cases pass
+- [x] React dependencies installed
+- [x] esbuild compiles TSX correctly
+- [x] Directory structure created
+- [x] CSS variables file created
+- [x] RecallView implemented
+- [x] View registered in main.ts
+- [x] CSS loading works
+- [x] All 8 test cases pass
 
 ---
 
