@@ -9,12 +9,14 @@ This document provides detailed implementation guidance for Part 2 (Question Gen
 
 ## Overview
 
-The Question Generation pipeline transforms concepts (from Part 1) into quiz questions:
+The Question Generation pipeline transforms notes into quiz questions. Notes can come from multiple entry points:
 
 ```
-TrackedConcept with 1,000 notes
+Quiz Entry Point (one of many)
+     ↓
+Notes to quiz
      ↓  (Score each note)
-1,000 scored notes
+Scored notes
      ↓  (Stratified sampling)
 15 selected notes
      ↓  (Check question cache)
@@ -24,6 +26,19 @@ TrackedConcept with 1,000 notes
      ↓  (Select by format + difficulty)
 10 final questions
 ```
+
+### Quiz Entry Points
+
+Users can start quizzes through multiple paths:
+
+| Entry Point | Input | Note Selection |
+|-------------|-------|----------------|
+| **By Concept** | `conceptId` | Get effective notes from concept (respects manual overrides) |
+| **Quick Start: All Concepts** | — | Sample from all tracked concepts |
+| **Quick Start: Due for Review** | — | Filter by spaced rep schedule |
+| **Quick Start: Last Week** | `TimeFilter` | Filter by creation/modification date |
+| **Quiz Specific Notes** | `noteIds[]` | Use provided notes directly |
+| **Quiz Me On...** | `searchQuery` | Semantic search → notes |
 
 ---
 
@@ -285,11 +300,264 @@ export const DEFAULT_QUESTION_CONFIG: QuestionGenerationConfig = {
 };
 ```
 
+### 1.6 Quiz Entry Point Types
+
+```typescript
+/**
+ * Time filter for "Last week's notes" entry point
+ */
+export interface TimeFilter {
+  range: 'last_3_days' | 'last_week' | 'last_2_weeks' | 'last_month';
+  dateType: 'created' | 'modified';
+}
+
+/**
+ * All possible quiz entry points
+ */
+export type QuizEntryPoint =
+  | { type: 'concept'; conceptId: string }
+  | { type: 'all_concepts' }
+  | { type: 'due_for_review' }
+  | { type: 'time_filter'; filter: TimeFilter }
+  | { type: 'specific_notes'; noteIds: string[] }
+  | { type: 'search'; query: string };
+
+/**
+ * Quiz session created from an entry point
+ */
+export interface QuizSession {
+  /** Unique session ID */
+  id: string;
+  /** Entry point that created this session */
+  sourceEntry: QuizEntryPoint;
+  /** Questions for this session */
+  questions: Question[];
+  /** When session was created */
+  createdAt: number;
+}
+
+/**
+ * Generate session ID
+ */
+export function generateSessionId(): string {
+  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+```
+
 ---
 
-## 2. Note Selection (`src/domain/question/noteSelection.ts`)
+## 2. Quiz Entry Points (`src/domain/question/entryPoints.ts`)
 
-### 2.1 Scoring Weights
+### 2.1 Time-Based Filtering
+
+```typescript
+import type { TimeFilter } from './types';
+import type { IVaultProvider } from '@/ports/IVaultProvider';
+
+/**
+ * Get time cutoff for a filter range
+ */
+export function getTimeCutoff(range: TimeFilter['range']): number {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+
+  switch (range) {
+    case 'last_3_days': return now - 3 * day;
+    case 'last_week': return now - 7 * day;
+    case 'last_2_weeks': return now - 14 * day;
+    case 'last_month': return now - 30 * day;
+  }
+}
+
+/**
+ * Get notes matching a time filter
+ */
+export async function getNotesForTimeFilter(
+  filter: TimeFilter,
+  vault: IVaultProvider
+): Promise<string[]> {
+  const cutoff = getTimeCutoff(filter.range);
+  const files = await vault.listMarkdownFiles();
+
+  return files
+    .filter(file => {
+      const date = filter.dateType === 'created'
+        ? file.stat.ctime
+        : file.stat.mtime;
+      return date >= cutoff;
+    })
+    .map(file => file.path);
+}
+```
+
+### 2.2 Concept-Based Entry (with Manual Overrides)
+
+```typescript
+import type { TrackedConcept } from '@/domain/llm/types';
+import { getEffectiveNoteIds } from '@/domain/llm/getEffectiveNoteIds';
+
+/**
+ * Get notes for a single concept (applies manual overrides)
+ */
+export async function getNotesForConcept(
+  conceptId: string,
+  loadConcept: (id: string) => Promise<TrackedConcept | null>
+): Promise<string[]> {
+  const concept = await loadConcept(conceptId);
+  if (!concept) return [];
+  return getEffectiveNoteIds(concept);
+}
+
+/**
+ * Get notes for all tracked concepts
+ */
+export async function getNotesForAllConcepts(
+  concepts: TrackedConcept[]
+): Promise<string[]> {
+  const allNotes = new Set<string>();
+
+  for (const concept of concepts) {
+    const notes = getEffectiveNoteIds(concept);
+    for (const noteId of notes) {
+      allNotes.add(noteId);
+    }
+  }
+
+  return [...allNotes];
+}
+```
+
+### 2.3 Due for Review Entry
+
+```typescript
+import type { TrackedConcept } from '@/domain/llm/types';
+import type { DerivedNoteStats } from './types';
+import { getEffectiveNoteIds } from '@/domain/llm/getEffectiveNoteIds';
+
+/**
+ * Spaced repetition intervals (days)
+ */
+const SPACED_REP_INTERVALS = [1, 3, 7, 14, 30, 60, 120];
+
+/**
+ * Check if a note is due for review based on spaced rep
+ */
+export function isNoteDue(stats: DerivedNoteStats): boolean {
+  if (stats.lastQuizzed === null) return true; // Never quizzed = due
+
+  const daysSinceQuiz = (Date.now() - stats.lastQuizzed) / (1000 * 60 * 60 * 24);
+  const targetInterval = SPACED_REP_INTERVALS[Math.min(stats.correctStreak, 6)];
+
+  return daysSinceQuiz >= targetInterval;
+}
+
+/**
+ * Get notes due for review from all concepts
+ */
+export async function getNotesDueForReview(
+  concepts: TrackedConcept[],
+  deriveNoteStats: (noteId: string) => Promise<DerivedNoteStats>
+): Promise<string[]> {
+  const dueNotes: string[] = [];
+
+  for (const concept of concepts) {
+    const notes = getEffectiveNoteIds(concept);
+
+    for (const noteId of notes) {
+      const stats = await deriveNoteStats(noteId);
+      if (isNoteDue(stats)) {
+        dueNotes.push(noteId);
+      }
+    }
+  }
+
+  return dueNotes;
+}
+```
+
+### 2.4 Direct Note Selection
+
+```typescript
+import type { IVaultProvider } from '@/ports/IVaultProvider';
+
+/**
+ * Validate and return existing notes from a list
+ */
+export async function getNotesForDirectSelection(
+  noteIds: string[],
+  vault: IVaultProvider
+): Promise<string[]> {
+  const existing = await Promise.all(
+    noteIds.map(async id => ({
+      id,
+      exists: await vault.exists(id)
+    }))
+  );
+
+  return existing.filter(n => n.exists).map(n => n.id);
+}
+```
+
+### 2.5 Unified Entry Point Resolver
+
+```typescript
+import type { QuizEntryPoint, TimeFilter, DerivedNoteStats } from './types';
+import type { TrackedConcept } from '@/domain/llm/types';
+import type { IVaultProvider } from '@/ports/IVaultProvider';
+
+export interface EntryPointDependencies {
+  vault: IVaultProvider;
+  loadConcept: (id: string) => Promise<TrackedConcept | null>;
+  loadAllConcepts: () => Promise<TrackedConcept[]>;
+  deriveNoteStats: (noteId: string) => Promise<DerivedNoteStats>;
+  searchNotes?: (query: string) => Promise<string[]>;
+}
+
+/**
+ * Resolve notes for any entry point type
+ */
+export async function resolveNotesForEntry(
+  entry: QuizEntryPoint,
+  deps: EntryPointDependencies
+): Promise<string[]> {
+  switch (entry.type) {
+    case 'concept': {
+      return getNotesForConcept(entry.conceptId, deps.loadConcept);
+    }
+
+    case 'all_concepts': {
+      const concepts = await deps.loadAllConcepts();
+      return getNotesForAllConcepts(concepts);
+    }
+
+    case 'due_for_review': {
+      const concepts = await deps.loadAllConcepts();
+      return getNotesDueForReview(concepts, deps.deriveNoteStats);
+    }
+
+    case 'time_filter': {
+      return getNotesForTimeFilter(entry.filter, deps.vault);
+    }
+
+    case 'specific_notes': {
+      return getNotesForDirectSelection(entry.noteIds, deps.vault);
+    }
+
+    case 'search': {
+      if (!deps.searchNotes) {
+        throw new Error('Search not available');
+      }
+      return deps.searchNotes(entry.query);
+    }
+  }
+}
+```
+
+---
+
+## 3. Note Selection (`src/domain/question/noteSelection.ts`)
+
+### 3.1 Scoring Weights
 
 ```typescript
 const WEIGHTS = {
@@ -301,7 +569,7 @@ const WEIGHTS = {
 };
 ```
 
-### 2.2 Note Quizzability Check
+### 3.2 Note Quizzability Check
 
 ```typescript
 /**
@@ -331,7 +599,7 @@ export function shouldQuizNote(stats: DerivedNoteStats): boolean {
 }
 ```
 
-### 2.3 Scoring Functions
+### 3.3 Scoring Functions
 
 ```typescript
 /**
@@ -416,7 +684,7 @@ export function calculateStruggleScore(stats: DerivedNoteStats): number {
 }
 ```
 
-### 2.4 Cold-Start Scoring
+### 3.4 Cold-Start Scoring
 
 ```typescript
 /**
@@ -436,7 +704,7 @@ export function calculateColdStartScore(
 }
 ```
 
-### 2.5 Main Scoring Function
+### 3.5 Main Scoring Function
 
 ```typescript
 /**
@@ -471,7 +739,7 @@ export function scoreNote(
 }
 ```
 
-### 2.6 Stratified Sampling
+### 3.6 Stratified Sampling
 
 ```typescript
 /**
@@ -1214,19 +1482,27 @@ export interface ILLMProvider {
 ```typescript
 import type { ILLMProvider } from '@/ports/ILLMProvider';
 import type { IStorageAdapter } from '@/ports/IStorageAdapter';
+import type { IVaultProvider } from '@/ports/IVaultProvider';
 import type { TrackedConcept } from '@/domain/llm/types';
 import type {
   Question,
   QuestionGenerationConfig,
   NoteSelectionInput,
   DerivedNoteStats,
+  QuizEntryPoint,
+  QuizSession,
   DEFAULT_QUESTION_CONFIG,
   EMPTY_DERIVED_STATS,
+  generateSessionId,
 } from './types';
 
+/**
+ * Input for question generation pipeline
+ * Now accepts noteIds directly (resolved from any entry point)
+ */
 export interface QuestionPipelineInput {
-  /** Concept to generate questions for */
-  concept: TrackedConcept;
+  /** Note IDs to generate questions for (from any entry point) */
+  noteIds: string[];
   /** LLM provider for question generation */
   llmProvider: ILLMProvider;
   /** Storage adapter for caching and history */
@@ -1241,10 +1517,26 @@ export interface QuestionPipelineInput {
   config?: Partial<QuestionGenerationConfig>;
 }
 
+/**
+ * Dependencies for unified quiz initialization
+ */
+export interface QuizDependencies {
+  vault: IVaultProvider;
+  llmProvider: ILLMProvider;
+  storageAdapter: IStorageAdapter;
+  loadConcept: (id: string) => Promise<TrackedConcept | null>;
+  loadAllConcepts: () => Promise<TrackedConcept[]>;
+  readNote: (noteId: string) => Promise<{ content: string; title: string } | null>;
+  getNoteMetadata: (noteId: string) => Promise<NoteSelectionInput | null>;
+  getContentHash: (content: string) => string;
+  searchNotes?: (query: string) => Promise<string[]>;
+  config?: Partial<QuestionGenerationConfig>;
+}
+
 export interface QuestionPipelineResult {
   questions: Question[];
   stats: {
-    notesInConcept: number;
+    notesInput: number;
     notesQuizzable: number;
     notesSelected: number;
     cacheHits: number;
@@ -1265,6 +1557,10 @@ import { QuestionHistoryManager } from './historyManager';
 import { scoreNote, selectNotes, shouldQuizNote } from './noteSelection';
 import { buildQuestionGenerationPrompt, parseQuestionResponse, QUESTION_GENERATION_SYSTEM_PROMPT } from './prompts';
 
+/**
+ * Run question generation pipeline on a set of notes
+ * Notes can come from any entry point (concept, time filter, direct selection, etc.)
+ */
 export async function runQuestionPipeline(
   input: QuestionPipelineInput
 ): Promise<QuestionPipelineResult> {
@@ -1273,7 +1569,7 @@ export async function runQuestionPipeline(
   const historyManager = new QuestionHistoryManager(input.storageAdapter);
 
   const stats = {
-    notesInConcept: input.concept.noteIds.length,
+    notesInput: input.noteIds.length,
     notesQuizzable: 0,
     notesSelected: 0,
     cacheHits: 0,
@@ -1287,7 +1583,7 @@ export async function runQuestionPipeline(
   // 1. Get metadata and filter quizzable notes using derived stats
   const quizzableNotes: Array<{ input: NoteSelectionInput; stats: DerivedNoteStats }> = [];
 
-  for (const noteId of input.concept.noteIds) {
+  for (const noteId of input.noteIds) {
     const metadata = await input.getNoteMetadata(noteId);
     if (!metadata) continue;
 
@@ -1430,6 +1726,52 @@ export function selectFinalQuestions(
   }
 
   return selected;
+}
+```
+
+### 6.4 Unified Quiz Initialization
+
+```typescript
+import { resolveNotesForEntry } from './entryPoints';
+import type { QuizEntryPoint, QuizSession } from './types';
+
+/**
+ * Initialize a quiz from any entry point
+ * This is the main entry point for starting a quiz session
+ */
+export async function initializeQuiz(
+  entry: QuizEntryPoint,
+  deps: QuizDependencies
+): Promise<QuizSession> {
+  const historyManager = new QuestionHistoryManager(deps.storageAdapter);
+
+  // 1. Resolve notes based on entry point type
+  const noteIds = await resolveNotesForEntry(entry, {
+    vault: deps.vault,
+    loadConcept: deps.loadConcept,
+    loadAllConcepts: deps.loadAllConcepts,
+    deriveNoteStats: (noteId) => historyManager.deriveNoteStats(noteId),
+    searchNotes: deps.searchNotes,
+  });
+
+  // 2. Run question generation pipeline
+  const result = await runQuestionPipeline({
+    noteIds,
+    llmProvider: deps.llmProvider,
+    storageAdapter: deps.storageAdapter,
+    readNote: deps.readNote,
+    getNoteMetadata: deps.getNoteMetadata,
+    getContentHash: deps.getContentHash,
+    config: deps.config,
+  });
+
+  // 3. Create quiz session
+  return {
+    id: generateSessionId(),
+    sourceEntry: entry,
+    questions: result.questions,
+    createdAt: Date.now(),
+  };
 }
 ```
 
@@ -1637,20 +1979,34 @@ npx tsx scripts/run-question-generation.ts --limit 3
 
 ## Implementation Checklist
 
-- [ ] Create `src/domain/question/types.ts`
+### Types & Core
+- [ ] Create `src/domain/question/types.ts` (includes QuizEntryPoint, TimeFilter, QuizSession)
 - [ ] Create `src/domain/question/noteSelection.ts`
 - [ ] Create `src/domain/question/__tests__/noteSelection.test.ts`
+
+### Quiz Entry Points (NEW)
+- [ ] Create `src/domain/question/entryPoints.ts`
+- [ ] Create `src/domain/question/__tests__/entryPoints.test.ts`
+- [ ] Ensure `src/domain/llm/getEffectiveNoteIds.ts` exists (from Part 1 changes)
+
+### Caching & History
 - [ ] Create `src/domain/question/cache.ts`
 - [ ] Create `src/domain/question/__tests__/cache.test.ts`
 - [ ] Create `src/domain/question/historyManager.ts`
 - [ ] Create `src/domain/question/__tests__/historyManager.test.ts`
+
+### LLM Integration
 - [ ] Create `src/domain/question/prompts.ts`
 - [ ] Create `src/domain/question/__tests__/prompts.test.ts`
 - [ ] Update `src/ports/ILLMProvider.ts`
 - [ ] Update `src/adapters/mock/MockLLMAdapter.ts`
-- [ ] Create `src/domain/question/pipeline.ts`
-- [ ] Create `src/domain/question/__tests__/pipeline.test.ts`
 - [ ] Update `src/adapters/anthropic/AnthropicLLMAdapter.ts`
+
+### Pipeline
+- [ ] Create `src/domain/question/pipeline.ts` (includes initializeQuiz)
+- [ ] Create `src/domain/question/__tests__/pipeline.test.ts`
 - [ ] Create `src/domain/question/index.ts`
+
+### Verification
 - [ ] Create `scripts/run-question-generation.ts`
 - [ ] Run all tests and verify

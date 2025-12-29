@@ -57,6 +57,15 @@ The `src/domain/llm/` module refines clusters into quizzable concepts:
 2. **Refinement** - Clusters are merged/split based on semantic similarity
 3. **Quizzability Scoring** - Concepts are scored for spaced repetition suitability
 
+### Scripts
+
+The `scripts/` directory contains standalone scripts for testing core functionality without launching Obsidian. These scripts run directly via `npx tsx` and are useful for:
+
+- Testing embedding providers and clustering algorithms
+- Running the full pipeline against exported vault fixtures
+- Evaluating and grid-searching clustering parameters
+- Testing LLM refinement and question generation
+
 ### Testing
 
 - Tests use Vitest with jsdom environment
