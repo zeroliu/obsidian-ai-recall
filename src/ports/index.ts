@@ -7,7 +7,6 @@ export type {
   ResolvedLinks,
 } from './IMetadataProvider';
 export type { IStorageAdapter } from './IStorageAdapter';
-export type { ILLMProvider } from './ILLMProvider';
 export type {
   BatchEmbeddingResult,
   EmbeddingConfig,

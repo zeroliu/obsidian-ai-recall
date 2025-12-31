@@ -21,7 +21,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error('Recall plugin error:', error, errorInfo);
+    console.error('Ignite plugin error:', error, errorInfo);
   }
 
   render(): React.ReactNode {
@@ -33,15 +33,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       return (
         <div
           style={{
-            padding: 'var(--recall-space-4)',
-            color: 'var(--recall-error)',
+            padding: 'var(--ignite-space-4)',
+            color: 'var(--ignite-error)',
           }}
         >
-          <h3 style={{ marginBottom: 'var(--recall-space-2)' }}>Something went wrong</h3>
+          <h3 style={{ marginBottom: 'var(--ignite-space-2)' }}>Something went wrong</h3>
           <p
             style={{
-              color: 'var(--recall-text-muted)',
-              fontSize: 'var(--recall-font-size-sm)',
+              color: 'var(--ignite-text-muted)',
+              fontSize: 'var(--ignite-font-size-sm)',
             }}
           >
             {this.state.error?.message ?? 'An unexpected error occurred'}
@@ -50,12 +50,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             type="button"
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
-              marginTop: 'var(--recall-space-3)',
-              padding: 'var(--recall-space-2) var(--recall-space-4)',
-              backgroundColor: 'var(--recall-accent)',
-              color: 'var(--recall-text-on-accent)',
+              marginTop: 'var(--ignite-space-3)',
+              padding: 'var(--ignite-space-2) var(--ignite-space-4)',
+              backgroundColor: 'var(--ignite-accent)',
+              color: 'var(--ignite-text-on-accent)',
               border: 'none',
-              borderRadius: 'var(--recall-radius-md)',
+              borderRadius: 'var(--ignite-radius-md)',
               cursor: 'pointer',
             }}
           >

@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-ai-recall",
-  "name": "AI Recall",
+  "id": "obsidian-ignite",
+  "name": "Ignite",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
-  "description": "AI-powered spaced repetition that helps you recall and connect your notes",
+  "description": "Goal-oriented learning that transforms your notes into actionable knowledge",
   "author": "zeroliu",
   "authorUrl": "https://github.com/zeroliu",
   "isDesktopOnly": false

@@ -1,5 +1,5 @@
 /*
- * Base styles for the Recall plugin
+ * Base styles for the Ignite plugin
  *
  * NOTE: This file is for reference/documentation only.
  * All styles are loaded from the root styles.css file which
@@ -8,32 +8,32 @@
  * See: /styles.css for the actual styles used at runtime.
  */
 
-.recall-view-container {
+.ignite-view-container {
   width: 100%;
   height: 100%;
-  font-family: var(--recall-font-ui);
-  font-size: var(--recall-font-size-base);
-  color: var(--recall-text);
-  background-color: var(--recall-bg);
+  font-family: var(--ignite-font-ui);
+  font-size: var(--ignite-font-size-base);
+  color: var(--ignite-text);
+  background-color: var(--ignite-bg);
   overflow: hidden;
 }
 
 /* Reset for plugin container */
-.recall-view-container * {
+.ignite-view-container * {
   box-sizing: border-box;
 }
 
-.recall-view-container button {
+.ignite-view-container button {
   font-family: inherit;
   cursor: var(--cursor);
 }
 
 /* Loading state */
-.recall-loading {
+.ignite-loading {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--recall-text-muted);
-  font-size: var(--recall-font-size-sm);
+  color: var(--ignite-text-muted);
+  font-size: var(--ignite-font-size-sm);
 }
