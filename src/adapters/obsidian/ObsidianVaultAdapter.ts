@@ -1,5 +1,5 @@
 import type { FileInfo, IVaultProvider } from '@/ports/IVaultProvider';
-import { type App, TFile } from 'obsidian';
+import { type App, TFile, TFolder } from 'obsidian';
 
 /**
  * Real Obsidian implementation of IVaultProvider
@@ -34,6 +34,41 @@ export class ObsidianVaultAdapter implements IVaultProvider {
     const parts = path.split('/');
     parts.pop(); // Remove filename
     return parts.join('/');
+  }
+
+  async createFile(path: string, content: string): Promise<void> {
+    await this.app.vault.create(path, content);
+  }
+
+  async modifyFile(path: string, content: string): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!file || !(file instanceof TFile)) {
+      throw new Error(`File not found: ${path}`);
+    }
+    await this.app.vault.modify(file, content);
+  }
+
+  async createFolder(path: string): Promise<void> {
+    const exists = await this.exists(path);
+    if (!exists) {
+      await this.app.vault.createFolder(path);
+    }
+  }
+
+  async deleteFile(path: string): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!file || !(file instanceof TFile)) {
+      throw new Error(`File not found: ${path}`);
+    }
+    await this.app.vault.delete(file);
+  }
+
+  async deleteFolder(path: string): Promise<void> {
+    const folder = this.app.vault.getAbstractFileByPath(path);
+    if (!folder || !(folder instanceof TFolder)) {
+      throw new Error(`Folder not found: ${path}`);
+    }
+    await this.app.vault.delete(folder, true);
   }
 
   private toFileInfo(file: TFile): FileInfo {
