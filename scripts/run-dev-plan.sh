@@ -186,7 +186,7 @@ auto_fix_validation_errors() {
   local iteration=$1
   local validation_errors="$2"
 
-  run_claude "Fix validation errors (iteration $iteration/$MAX_VALIDATION_ITERATIONS)" 20 \
+  run_claude "Fix validation errors (iteration $iteration/$MAX_VALIDATION_ITERATIONS)" 100 \
     -p "
 The code has validation errors that need to be fixed before it can be committed.
 
@@ -242,7 +242,7 @@ validation_and_fix_loop() {
 run_local_review() {
   local review_file="/tmp/review_output_$$.txt"
 
-  run_claude "Code review" 10 \
+  run_claude "Code review" 100 \
     -p "
 Please review my recent code changes and provide feedback on:
 - Code quality and best practices
@@ -294,7 +294,7 @@ auto_fix_review_issues() {
   local review_feedback="$2"
 
   # Pass the actual review feedback to the fix agent
-  run_claude "Fix review issues (iteration $iteration/$MAX_REVIEW_ITERATIONS)" 15 \
+  run_claude "Fix review issues (iteration $iteration/$MAX_REVIEW_ITERATIONS)" 100 \
     -p "
 The following code review found issues that need to be fixed.
 
@@ -388,7 +388,7 @@ continue_implementation() {
   local phase_name=$2
   local continuation=$3
 
-  run_claude "Continue Phase $phase_num implementation (continuation $continuation/$MAX_IMPLEMENTATION_CONTINUATIONS)" 25 \
+  run_claude "Continue Phase $phase_num implementation (continuation $continuation/$MAX_IMPLEMENTATION_CONTINUATIONS)" 100 \
     -p "
 Continue implementing Phase $phase_num: $phase_name from the plan at $PLAN_FILE.
 
@@ -419,8 +419,8 @@ run_phase() {
   info "Workflow for this phase:"
   info "  1. 🔨 Implementation       (max 300 turns)"
   info "  2. 🔍 Completion check     (max 100 turns) × up to $MAX_IMPLEMENTATION_CONTINUATIONS continuations"
-  info "  3. ✅ Validation loop      (lint/type/test) × up to $MAX_VALIDATION_ITERATIONS iterations"
-  info "  4. 📋 Code review loop     (max 10 turns) × up to $MAX_REVIEW_ITERATIONS iterations"
+  info "  3. ✅ Validation loop      (max 100 turns) × up to $MAX_VALIDATION_ITERATIONS iterations"
+  info "  4. 📋 Code review loop     (max 100 turns) × up to $MAX_REVIEW_ITERATIONS iterations"
   info "  5. 🚀 Commit, PR, merge"
   info ""
 
