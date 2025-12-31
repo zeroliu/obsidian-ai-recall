@@ -1,21 +1,21 @@
 import { ItemView } from 'obsidian';
 import type { Root } from 'react-dom/client';
 
-export const RECALL_VIEW_TYPE = 'recall-view';
+export const IGNITE_VIEW_TYPE = 'ignite-view';
 
-export class RecallView extends ItemView {
+export class IgniteView extends ItemView {
   private root: Root | null = null;
 
   getViewType(): string {
-    return RECALL_VIEW_TYPE;
+    return IGNITE_VIEW_TYPE;
   }
 
   getDisplayText(): string {
-    return 'Recall';
+    return 'Ignite';
   }
 
   getIcon(): string {
-    return 'brain';
+    return 'flame';
   }
 
   async onOpen(): Promise<void> {
@@ -23,20 +23,20 @@ export class RecallView extends ItemView {
     if (!container) return;
 
     container.empty();
-    container.addClass('recall-view-container');
+    container.addClass('ignite-view-container');
 
     // Show loading state while React loads
-    const loadingEl = container.createDiv({ cls: 'recall-loading' });
-    loadingEl.createSpan({ text: 'Loading Recall...' });
+    const loadingEl = container.createDiv({ cls: 'ignite-loading' });
+    loadingEl.createSpan({ text: 'Loading Ignite...' });
 
     // Dynamic import to ensure React is loaded
     const { createRoot } = await import('react-dom/client');
-    const { RecallApp } = await import('@/ui/RecallApp');
+    const { IgniteApp } = await import('@/ui/IgniteApp');
 
     // Remove loading state and mount React
     loadingEl.remove();
     this.root = createRoot(container as HTMLElement);
-    this.root.render(<RecallApp />);
+    this.root.render(<IgniteApp />);
   }
 
   async onClose(): Promise<void> {

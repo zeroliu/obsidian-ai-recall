@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Obsidian plugin that provides AI-powered spaced repetition for note recall. It uses the Anthropic Claude API to intelligently cluster and surface notes for review.
+Ignite is an Obsidian plugin that provides goal-oriented learning. Users define learning goals, and the plugin helps them achieve mastery through personalized quizzes, research, and drafts. It uses the Anthropic Claude API for AI-powered features.
 
 ## Commands
 
@@ -31,40 +31,27 @@ The codebase uses a hexagonal architecture to decouple domain logic from Obsidia
   - `IVaultProvider`: File operations (list, read, exists)
   - `IMetadataProvider`: Note metadata (tags, links, headings, frontmatter)
   - `IStorageAdapter`: Persistent storage
+  - `ILLMProvider`: LLM interactions for question generation
 
 - **Adapters** (`src/adapters/`): Implementations of port interfaces
 
+  - `obsidian/`: Obsidian-specific implementations
+  - `anthropic/`: Anthropic Claude LLM adapter
   - `mock/`: In-memory implementations for testing
 
 - **Domain** (`src/domain/`): Pure business logic with no Obsidian dependencies
 
-### Embedding-Based Clustering Pipeline
+### Question Generation Pipeline
 
-The `src/domain/clustering/` module clusters notes using semantic embeddings:
+The `src/domain/question/` module generates quiz questions from notes:
 
-1. **Embedding Generation** - Notes are embedded using OpenAI or Voyage embedding APIs
-2. **UMAP Dimensionality Reduction** - High-dimensional embeddings are reduced to ~10 dimensions
-3. **HDBSCAN Clustering** - Density-based clustering identifies semantic groups
-4. **Incremental Updates** - New notes are assigned to existing clusters via cosine similarity
+1. **Note Selection** - Selects notes based on learning goals and history
+2. **Question Generation** - LLM generates questions from selected content
+3. **History Tracking** - Tracks quiz performance for adaptive learning
 
-Run the full pipeline via `ClusteringV2Pipeline` from `src/domain/clustering/pipeline.ts`.
+### Embedding Module (for future use)
 
-### LLM Pipeline
-
-The `src/domain/llm/` module refines clusters into quizzable concepts:
-
-1. **Naming** - LLM assigns descriptive names to clusters
-2. **Refinement** - Clusters are merged/split based on semantic similarity
-3. **Quizzability Scoring** - Concepts are scored for spaced repetition suitability
-
-### Scripts
-
-The `scripts/` directory contains standalone scripts for testing core functionality without launching Obsidian. These scripts run directly via `npx tsx` and are useful for:
-
-- Testing embedding providers and clustering algorithms
-- Running the full pipeline against exported vault fixtures
-- Evaluating and grid-searching clustering parameters
-- Testing LLM refinement and question generation
+The `src/domain/embedding/` module provides text preparation and caching utilities that may be reused for semantic search or other features.
 
 ### Testing
 

@@ -5,14 +5,14 @@ import type { App } from 'obsidian';
  * Obsidian-based implementation of IStorageAdapter
  *
  * Stores data as JSON files in the vault using Obsidian's vault.adapter API.
- * Keys are converted to file paths (e.g., "embeddings/index" -> ".recall/embeddings/index.json")
+ * Keys are converted to file paths (e.g., "embeddings/index" -> ".ignite/embeddings/index.json")
  */
 export class ObsidianStorageAdapter implements IStorageAdapter {
   private basePath: string;
 
   constructor(
     private app: App,
-    basePath = '.recall',
+    basePath = '.ignite',
   ) {
     this.basePath = basePath;
   }
