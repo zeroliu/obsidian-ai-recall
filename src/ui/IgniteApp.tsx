@@ -1,49 +1,56 @@
 import type React from 'react';
 
+import { Router, useRouter } from '@/ui/Router';
 import { ErrorBoundary } from '@/ui/components/shared/ErrorBoundary';
+import { GoalDetailScreen, HomeScreen } from '@/ui/screens';
 
 const IgniteAppContent: React.FC = () => {
-  return (
-    <div style={{ padding: 'var(--ignite-space-4)' }}>
-      <h2
-        style={{
-          color: 'var(--ignite-text)',
-          marginBottom: 'var(--ignite-space-2)',
-        }}
-      >
-        Ignite
-      </h2>
-      <p style={{ color: 'var(--ignite-text-muted)' }}>Plugin is loading...</p>
-      <div
-        style={{
-          marginTop: 'var(--ignite-space-4)',
-          padding: 'var(--ignite-space-3)',
-          backgroundColor: 'var(--ignite-bg-card)',
-          borderRadius: 'var(--ignite-radius-md)',
-          border: '1px solid var(--ignite-border)',
-        }}
-      >
-        <p style={{ color: 'var(--ignite-accent)' }}>React is working</p>
-        <p
-          style={{
-            color: 'var(--ignite-text-muted)',
-            fontSize: 'var(--ignite-font-size-sm)',
-            marginTop: 'var(--ignite-space-2)',
-          }}
-        >
-          CSS variables are mapped correctly
-        </p>
-      </div>
-    </div>
-  );
+  const { currentScreen } = useRouter();
+
+  // Render screen based on current route
+  switch (currentScreen.type) {
+    case 'home':
+      return <HomeScreen />;
+    case 'goal-detail':
+      return <GoalDetailScreen goalId={currentScreen.goalId} />;
+    case 'brainstorm':
+      // TODO: Implement BrainstormScreen in Phase 3
+      return (
+        <div className="ignite-screen">
+          <p>Brainstorm screen - Coming in Phase 3</p>
+        </div>
+      );
+    case 'discuss':
+      // TODO: Implement DiscussScreen in Phase 4
+      return (
+        <div className="ignite-screen">
+          <p>Discuss screen - Coming in Phase 4</p>
+        </div>
+      );
+    case 'qa':
+      // TODO: Implement QAScreen in Phase 4
+      return (
+        <div className="ignite-screen">
+          <p>Q&A screen - Coming in Phase 4</p>
+        </div>
+      );
+    default:
+      return (
+        <div className="ignite-screen">
+          <p>Unknown screen</p>
+        </div>
+      );
+  }
 };
 
 export const IgniteApp: React.FC = () => {
   return (
     <ErrorBoundary>
-      <div className="ignite-app">
-        <IgniteAppContent />
-      </div>
+      <Router>
+        <div className="ignite-app">
+          <IgniteAppContent />
+        </div>
+      </Router>
     </ErrorBoundary>
   );
 };
