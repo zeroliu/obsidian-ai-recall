@@ -42,3 +42,12 @@ export { DEFAULT_ORCHESTRATOR_CONFIG, EmbeddingOrchestrator } from './embedBatch
 // Empty text filtering
 export type { FilteredEmbeddingInputs } from './filterEmptyTexts';
 export { filterEmptyTexts } from './filterEmptyTexts';
+
+// Similarity utilities
+export type { SimilarityResult } from './similarity';
+export {
+  cosineSimilarity,
+  findTopKSimilar,
+  relevanceScoreToSimilarity,
+  similarityToRelevanceScore,
+} from './similarity';
