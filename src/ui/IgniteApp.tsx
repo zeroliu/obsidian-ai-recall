@@ -1,6 +1,7 @@
 import type React from 'react';
 
 import {
+  Router,
   isBrainstormScreen,
   isDiscussScreen,
   isGoalDetailScreen,
@@ -61,9 +62,11 @@ const IgniteAppContent: React.FC = () => {
 export const IgniteApp: React.FC = () => {
   return (
     <ErrorBoundary>
-      <div className="ignite-app">
-        <IgniteAppContent />
-      </div>
+      <Router>
+        <div className="ignite-app">
+          <IgniteAppContent />
+        </div>
+      </Router>
     </ErrorBoundary>
   );
 };
