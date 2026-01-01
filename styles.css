@@ -1399,3 +1399,41 @@
   background-color: rgba(var(--color-red-rgb), 0.1);
   color: var(--color-red);
 }
+
+/* === NOTE ASSIGNMENT PROGRESS === */
+.ignite-note-assignment-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ignite-space-3);
+  width: 100%;
+  max-width: 400px;
+}
+
+.ignite-progress-phase {
+  margin: 0;
+  font-size: var(--ignite-font-size-base);
+  font-weight: 500;
+  color: var(--ignite-text);
+}
+
+.ignite-progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background-color: var(--ignite-bg-secondary);
+  border-radius: var(--ignite-radius-full);
+  overflow: hidden;
+}
+
+.ignite-progress-bar {
+  height: 100%;
+  background-color: var(--ignite-accent);
+  border-radius: var(--ignite-radius-full);
+  transition: width 0.3s ease-out;
+}
+
+.ignite-progress-message {
+  margin: 0;
+  font-size: var(--ignite-font-size-sm);
+  color: var(--ignite-text-muted);
+}

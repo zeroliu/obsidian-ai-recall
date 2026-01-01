@@ -7,6 +7,8 @@ import { type App, Notice, PluginSettingTab, Setting } from 'obsidian';
 export interface IgniteSettings {
   /** Anthropic API key for LLM features */
   anthropicApiKey: string;
+  /** Voyage API key for embedding-based note relevance */
+  voyageApiKey: string;
   /** Glob patterns for files to include (e.g., "notes/**", "projects/*.md") */
   includePaths: string[];
   /** Glob patterns for files to exclude (e.g., "templates/**", "archive/**") */
@@ -18,6 +20,7 @@ export interface IgniteSettings {
  */
 export const DEFAULT_SETTINGS: IgniteSettings = {
   anthropicApiKey: '',
+  voyageApiKey: '',
   includePaths: [],
   excludePaths: [],
 };
@@ -67,11 +70,43 @@ export function isApiKeyConfigured(settings: IgniteSettings): boolean {
 }
 
 /**
+ * Validate a Voyage API key format.
+ * Voyage API keys typically start with 'pa-' prefix.
+ */
+export function validateVoyageApiKey(apiKey: string): ApiKeyValidationResult {
+  if (!apiKey || apiKey.trim().length === 0) {
+    return { valid: false, error: 'Voyage API key is required for note relevance' };
+  }
+
+  const trimmedKey = apiKey.trim();
+
+  // Voyage keys are typically at least 20 characters
+  if (trimmedKey.length < 10) {
+    return { valid: false, error: 'API key appears to be too short' };
+  }
+
+  // Check for common mistakes like spaces or newlines
+  if (/\s/.test(trimmedKey)) {
+    return { valid: false, error: 'API key cannot contain spaces or newlines' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Check if Voyage API key is configured and valid.
+ */
+export function isVoyageApiKeyConfigured(settings: IgniteSettings): boolean {
+  return validateVoyageApiKey(settings.voyageApiKey).valid;
+}
+
+/**
  * Settings tab for the Ignite plugin
  */
 export class IgniteSettingsTab extends PluginSettingTab {
   plugin: IgnitePlugin;
   private apiKeyStatusEl: HTMLElement | null = null;
+  private voyageApiKeyStatusEl: HTMLElement | null = null;
 
   constructor(app: App, plugin: IgnitePlugin) {
     super(app, plugin);
@@ -120,6 +155,42 @@ export class IgniteSettingsTab extends PluginSettingTab {
       .addButton((button) =>
         button.setButtonText('Test Connection').onClick(async () => {
           await this.testApiConnection();
+        }),
+      );
+
+    // Voyage API key for embeddings
+    const voyageApiKeySetting = new Setting(containerEl)
+      .setName('Voyage API key')
+      .setDesc('API key for embedding-based note relevance scoring. Get one at voyageai.com.')
+      .addText((text) =>
+        text
+          .setPlaceholder('pa-...')
+          .setValue(this.plugin.settings.voyageApiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.voyageApiKey = value;
+            await this.plugin.saveSettings();
+            this.updateVoyageApiKeyStatus(value);
+          }),
+      )
+      .then((setting) => {
+        const inputEl = setting.controlEl.querySelector('input');
+        if (inputEl) {
+          inputEl.type = 'password';
+          inputEl.autocomplete = 'off';
+        }
+      });
+
+    // Add validation status indicator for Voyage
+    this.voyageApiKeyStatusEl = voyageApiKeySetting.descEl.createDiv('ignite-api-key-status');
+    this.updateVoyageApiKeyStatus(this.plugin.settings.voyageApiKey);
+
+    // Add test connection button for Voyage
+    new Setting(containerEl)
+      .setName('Test Voyage connection')
+      .setDesc('Verify that your Voyage API key works correctly')
+      .addButton((button) =>
+        button.setButtonText('Test Connection').onClick(async () => {
+          await this.testVoyageApiConnection();
         }),
       );
 
@@ -258,6 +329,88 @@ export class IgniteSettingsTab extends PluginSettingTab {
         new Notice(`Connection failed: ${error.message}`);
       } else {
         new Notice('Connection failed: Unknown error');
+      }
+    }
+  }
+
+  /**
+   * Update the Voyage API key validation status display.
+   */
+  private updateVoyageApiKeyStatus(apiKey: string): void {
+    if (!this.voyageApiKeyStatusEl) return;
+
+    this.voyageApiKeyStatusEl.empty();
+
+    if (!apiKey || apiKey.trim().length === 0) {
+      this.voyageApiKeyStatusEl.addClass('ignite-api-key-status-empty');
+      this.voyageApiKeyStatusEl.removeClass(
+        'ignite-api-key-status-valid',
+        'ignite-api-key-status-invalid',
+      );
+      this.voyageApiKeyStatusEl.setText('No Voyage API key configured (optional)');
+      return;
+    }
+
+    const result = validateVoyageApiKey(apiKey);
+    if (result.valid) {
+      this.voyageApiKeyStatusEl.addClass('ignite-api-key-status-valid');
+      this.voyageApiKeyStatusEl.removeClass(
+        'ignite-api-key-status-empty',
+        'ignite-api-key-status-invalid',
+      );
+      this.voyageApiKeyStatusEl.setText('API key format is valid');
+    } else {
+      this.voyageApiKeyStatusEl.addClass('ignite-api-key-status-invalid');
+      this.voyageApiKeyStatusEl.removeClass(
+        'ignite-api-key-status-empty',
+        'ignite-api-key-status-valid',
+      );
+      this.voyageApiKeyStatusEl.setText(result.error ?? 'Invalid API key format');
+    }
+  }
+
+  /**
+   * Test the Voyage API connection with the configured key.
+   */
+  private async testVoyageApiConnection(): Promise<void> {
+    const apiKey = this.plugin.settings.voyageApiKey;
+    const validation = validateVoyageApiKey(apiKey);
+
+    if (!validation.valid) {
+      new Notice(`Voyage API key validation failed: ${validation.error}`);
+      return;
+    }
+
+    new Notice('Testing Voyage API connection...');
+
+    try {
+      const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'voyage-3-lite',
+          input: ['test'],
+        }),
+      });
+
+      if (response.ok) {
+        new Notice('Voyage API connection successful! Your API key is working.');
+      } else if (response.status === 401) {
+        new Notice('Voyage API key is invalid. Please check your API key.');
+      } else if (response.status === 429) {
+        new Notice('Rate limited. Your Voyage API key is valid but you are being rate limited.');
+      } else {
+        const errorText = await response.text();
+        new Notice(`Voyage API error (${response.status}): ${errorText.slice(0, 100)}`);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        new Notice(`Voyage connection failed: ${error.message}`);
+      } else {
+        new Notice('Voyage connection failed: Unknown error');
       }
     }
   }
