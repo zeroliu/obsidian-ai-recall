@@ -1,17 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import type React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { IMetadataProvider, IStorageAdapter, IVaultProvider } from '@/ports';
+import type { ILLMProvider, IMetadataProvider, IStorageAdapter, IVaultProvider } from '@/ports';
 import type { IgniteSettings } from '@/settings';
-import { IgniteApp } from '@/ui/IgniteApp';
-import { AppProvider } from '@/ui/contexts/AppContext';
-import { GoalProvider } from '@/ui/contexts/GoalContext';
+import { IgniteRoot } from '@/ui/IgniteApp';
+import type { AppContextValue } from '@/ui/contexts/AppContext';
 
 /**
- * Mock providers for testing.
- * These wrap IgniteApp with the required context that would normally
- * come from the Obsidian plugin.
+ * Creates mock adapters for testing.
+ * Used to construct AppContextValue for IgniteRoot.
  */
 function createMockVaultProvider(): IVaultProvider {
   return {
@@ -48,6 +45,17 @@ function createMockMetadataProvider(): IMetadataProvider {
   };
 }
 
+function createMockLLMProvider(): ILLMProvider {
+  return {
+    chat: vi.fn(async () => ({ content: '' })),
+    streamChat: vi.fn(async () => {}),
+    getProviderName: vi.fn(() => 'Mock'),
+    getModelName: vi.fn(() => 'mock-model'),
+    getMaxTokens: vi.fn(() => 4096),
+    estimateTokens: vi.fn(() => 0),
+  };
+}
+
 function createMockSettings(): IgniteSettings {
   return {
     anthropicApiKey: '',
@@ -57,43 +65,33 @@ function createMockSettings(): IgniteSettings {
   };
 }
 
-interface TestWrapperProps {
-  children: React.ReactNode;
-}
-
 /**
- * Test wrapper that provides all required context providers.
- * This mimics what IgniteView should provide in production.
+ * Creates a mock AppContextValue for testing.
+ * This is passed to IgniteRoot, the same component used in production.
  */
-function TestWrapper({ children }: TestWrapperProps) {
-  const appContextValue = {
+function createMockAppContext(): AppContextValue {
+  return {
     vaultProvider: createMockVaultProvider(),
     storageAdapter: createMockStorageAdapter(),
     metadataProvider: createMockMetadataProvider(),
+    llmProvider: createMockLLMProvider(),
     settings: createMockSettings(),
   };
-
-  return (
-    <AppProvider value={appContextValue}>
-      <GoalProvider>{children}</GoalProvider>
-    </AppProvider>
-  );
 }
 
-describe('IgniteApp', () => {
+describe('IgniteRoot', () => {
   it('renders without throwing context errors', () => {
-    // This will throw if any required internal context provider is missing
-    // (e.g., Router). External providers (AppProvider, GoalProvider) are
-    // provided by TestWrapper.
-    expect(() =>
-      render(<IgniteApp />, {
-        wrapper: TestWrapper,
-      }),
-    ).not.toThrow();
+    // Uses the same IgniteRoot component as production (IgniteView).
+    // If IgniteRoot is missing any provider, this test will fail.
+    const appContext = createMockAppContext();
+
+    expect(() => render(<IgniteRoot appContext={appContext} />)).not.toThrow();
   });
 
   it('renders the home screen by default', () => {
-    render(<IgniteApp />, { wrapper: TestWrapper });
+    const appContext = createMockAppContext();
+
+    render(<IgniteRoot appContext={appContext} />);
 
     // HomeScreen should render the goals list (empty state when no goals)
     expect(screen.getByText('My Goals')).toBeTruthy();

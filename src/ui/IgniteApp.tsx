@@ -11,6 +11,9 @@ import {
   useRouter,
 } from '@/ui/Router';
 import { ErrorBoundary } from '@/ui/components/shared/ErrorBoundary';
+import { type AppContextValue, AppProvider } from '@/ui/contexts/AppContext';
+import { GoalProvider } from '@/ui/contexts/GoalContext';
+import { LLMProvider } from '@/ui/contexts/LLMContext';
 import { BrainstormScreen } from '@/ui/screens/BrainstormScreen';
 import { DiscussScreen } from '@/ui/screens/DiscussScreen';
 import { GoalDetailScreen } from '@/ui/screens/GoalDetailScreen';
@@ -59,6 +62,10 @@ const IgniteAppContent: React.FC = () => {
   );
 };
 
+/**
+ * Core app component that assumes context providers are in place.
+ * Use IgniteRoot to render with providers.
+ */
 export const IgniteApp: React.FC = () => {
   return (
     <ErrorBoundary>
@@ -68,5 +75,25 @@ export const IgniteApp: React.FC = () => {
         </div>
       </Router>
     </ErrorBoundary>
+  );
+};
+
+interface IgniteRootProps {
+  appContext: AppContextValue;
+}
+
+/**
+ * Root component that wraps IgniteApp with all required providers.
+ * Use this in production (IgniteView) and tests to ensure consistent provider structure.
+ */
+export const IgniteRoot: React.FC<IgniteRootProps> = ({ appContext }) => {
+  return (
+    <AppProvider value={appContext}>
+      <LLMProvider llmProvider={appContext.llmProvider}>
+        <GoalProvider>
+          <IgniteApp />
+        </GoalProvider>
+      </LLMProvider>
+    </AppProvider>
   );
 };
