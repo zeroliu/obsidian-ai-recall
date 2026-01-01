@@ -376,4 +376,60 @@ describe('EmbeddingRelevanceService', () => {
       expect(scores.length).toBe(2);
     });
   });
+
+  describe('error handling', () => {
+    it('should throw descriptive error when query embedding fails', async () => {
+      // Make embed fail for query
+      mockEmbeddingProvider.embed = vi.fn(async () => {
+        throw new Error('Voyage API rate limited');
+      });
+
+      const goalDraft: GoalDraft = {
+        name: 'Learn TypeScript',
+        description: 'Master TypeScript',
+        deadline: '2025-12-31',
+        milestones: [],
+      };
+
+      await expect(service.scoreNotes(goalDraft, [], [])).rejects.toThrow(
+        'Failed to embed goal query: Voyage API rate limited',
+      );
+    });
+
+    it('should throw descriptive error when query embedding fails with unknown error', async () => {
+      // Make embed fail with non-Error
+      mockEmbeddingProvider.embed = vi.fn(async () => {
+        throw 'Unknown failure';
+      });
+
+      const goalDraft: GoalDraft = {
+        name: 'Learn TypeScript',
+        description: 'Master TypeScript',
+        deadline: '2025-12-31',
+        milestones: [],
+      };
+
+      await expect(service.scoreNotes(goalDraft, [], [])).rejects.toThrow(
+        'Failed to embed goal query: Unknown error',
+      );
+    });
+
+    it('should propagate embedding batch errors', async () => {
+      // Make embedBatch fail
+      mockEmbeddingProvider.embedBatch = vi.fn(async () => {
+        throw new Error('Batch embedding failed: API error');
+      });
+
+      const goalDraft: GoalDraft = {
+        name: 'Learn TypeScript',
+        description: 'Master TypeScript',
+        deadline: '2025-12-31',
+        milestones: [],
+      };
+
+      await expect(service.scoreNotes(goalDraft, [], [])).rejects.toThrow(
+        'Batch embedding failed: API error',
+      );
+    });
+  });
 });

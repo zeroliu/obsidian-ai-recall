@@ -89,18 +89,34 @@ export class EmbeddingRelevanceService {
       return [];
     }
 
-    // 2. Read note contents
+    // 2. Read note contents in batches to avoid memory pressure
     onProgress?.('indexing', 0, files.length, 'Reading notes...');
 
-    const notesWithContent = await Promise.all(
-      files.map(async (file) => {
-        const content = await this.vaultProvider.readFile(file.path);
-        return {
-          notePath: file.path,
-          content,
-        };
-      }),
-    );
+    const notesWithContent: Array<{ notePath: string; content: string }> = [];
+    const BATCH_SIZE = 100;
+
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const batchContents = await Promise.all(
+        batch.map(async (file) => {
+          const content = await this.vaultProvider.readFile(file.path);
+          return {
+            notePath: file.path,
+            content,
+          };
+        }),
+      );
+      notesWithContent.push(...batchContents);
+      onProgress?.(
+        'indexing',
+        Math.min(i + BATCH_SIZE, files.length),
+        files.length,
+        'Reading notes...',
+      );
+    }
+
+    // Build content map for O(1) lookups
+    const contentMap = new Map(notesWithContent.map((n) => [n.notePath, n.content]));
 
     // 3. Embed all notes (with caching)
     onProgress?.('indexing', 0, files.length, 'Indexing notes...');
@@ -122,7 +138,14 @@ export class EmbeddingRelevanceService {
     onProgress?.('searching', 0, 1, 'Preparing search query...');
 
     const queryText = this.buildQueryText(goalDraft);
-    const queryEmbedding = await this.embedQuery(queryText);
+    let queryEmbedding: number[];
+    try {
+      queryEmbedding = await this.embedQuery(queryText);
+    } catch (error) {
+      throw new Error(
+        `Failed to embed goal query: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
 
     // 5. Similarity search
     onProgress?.('searching', 1, 1, 'Finding relevant notes...');
@@ -136,7 +159,7 @@ export class EmbeddingRelevanceService {
       const scoredNotes = await this.rerankWithLLM(
         goalDraft,
         topCandidates,
-        notesWithContent,
+        contentMap,
         onProgress,
       );
 
@@ -145,12 +168,12 @@ export class EmbeddingRelevanceService {
 
     // Return results without LLM explanations
     return topCandidates.map((candidate) => {
-      const note = notesWithContent.find((n) => n.notePath === candidate.notePath);
+      const content = contentMap.get(candidate.notePath);
       return {
         path: candidate.notePath,
         score: similarityToRelevanceScore(candidate.similarity),
         reason: 'Semantically similar to goal description',
-        preview: note ? this.createPreview(note.content) : undefined,
+        preview: content ? this.createPreview(content) : undefined,
       };
     });
   }
@@ -182,13 +205,13 @@ export class EmbeddingRelevanceService {
   private async rerankWithLLM(
     goalDraft: GoalDraft,
     candidates: Array<{ notePath: string; similarity: number }>,
-    notesWithContent: Array<{ notePath: string; content: string }>,
+    contentMap: Map<string, string>,
     onProgress?: RelevanceProgressCallback,
   ): Promise<ScoredNote[]> {
-    // Build note previews for LLM
+    // Build note previews for LLM using O(1) Map lookup
     const notePreviews = candidates.map((candidate) => {
-      const note = notesWithContent.find((n) => n.notePath === candidate.notePath);
-      const preview = note ? this.createPreview(note.content) : '';
+      const content = contentMap.get(candidate.notePath);
+      const preview = content ? this.createPreview(content) : '';
       return {
         path: candidate.notePath,
         preview,
@@ -217,8 +240,11 @@ export class EmbeddingRelevanceService {
     // Parse LLM response
     const llmScores = this.parseLLMResponse(response.content);
 
+    // Build preview map for O(1) lookups
+    const previewMap = new Map(notePreviews.map((n) => [n.path, n.preview]));
+
     // Merge LLM scores with embedding scores
-    return this.mergeScores(candidates, notePreviews, llmScores);
+    return this.mergeScores(candidates, previewMap, llmScores);
   }
 
   /**
@@ -286,13 +312,13 @@ ${noteDescriptions}`;
    */
   private mergeScores(
     candidates: Array<{ notePath: string; similarity: number }>,
-    notePreviews: Array<{ path: string; preview: string; embeddingScore: number }>,
+    previewMap: Map<string, string>,
     llmScores: Map<string, { score: number; reason: string }>,
   ): ScoredNote[] {
     const results: ScoredNote[] = [];
 
     for (const candidate of candidates) {
-      const preview = notePreviews.find((n) => n.path === candidate.notePath);
+      const preview = previewMap.get(candidate.notePath);
       const llmScore = llmScores.get(candidate.notePath);
 
       if (llmScore) {
@@ -301,7 +327,7 @@ ${noteDescriptions}`;
           path: candidate.notePath,
           score: llmScore.score,
           reason: llmScore.reason,
-          preview: preview?.preview,
+          preview,
         });
       } else {
         // Fall back to embedding score
@@ -309,7 +335,7 @@ ${noteDescriptions}`;
           path: candidate.notePath,
           score: similarityToRelevanceScore(candidate.similarity),
           reason: 'Semantically similar to goal description',
-          preview: preview?.preview,
+          preview,
         });
       }
     }

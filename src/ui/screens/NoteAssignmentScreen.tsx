@@ -26,7 +26,7 @@ export interface NoteAssignmentScreenProps {
 /**
  * Progress state for embedding-based relevance scoring.
  */
-interface ProgressState {
+export interface ProgressState {
   phase: 'indexing' | 'searching' | 'explaining';
   current: number;
   total: number;

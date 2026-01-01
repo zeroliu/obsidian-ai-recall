@@ -1,3 +1,4 @@
+import { DEFAULT_VOYAGE_API_URL } from '@/adapters/voyage/VoyageEmbeddingAdapter';
 import type IgnitePlugin from '@/main';
 import { type App, Notice, PluginSettingTab, Setting } from 'obsidian';
 
@@ -384,7 +385,7 @@ export class IgniteSettingsTab extends PluginSettingTab {
     new Notice('Testing Voyage API connection...');
 
     try {
-      const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+      const response = await fetch(DEFAULT_VOYAGE_API_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
