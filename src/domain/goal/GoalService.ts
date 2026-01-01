@@ -58,9 +58,7 @@ export class GoalService {
     notesPaths?: string[];
   }): Promise<Goal> {
     // Validate inputs
-    if (!params.name || params.name.trim().length === 0) {
-      throw new Error('Goal name cannot be empty');
-    }
+    this.validateGoalName(params.name);
     if (!params.description || params.description.trim().length === 0) {
       throw new Error('Goal description cannot be empty');
     }
@@ -253,6 +251,25 @@ export class GoalService {
       throw new Error(
         'Invalid goal ID: cannot contain path separators or parent directory references',
       );
+    }
+  }
+
+  /**
+   * Validate goal name to prevent security issues.
+   * Goal names are used in file content, not paths, so we mainly check for reasonable lengths.
+   */
+  private validateGoalName(name: string): void {
+    if (!name || name.trim().length === 0) {
+      throw new Error('Goal name cannot be empty');
+    }
+    if (name.length > 200) {
+      throw new Error('Goal name cannot exceed 200 characters');
+    }
+    // Check for control characters using character code comparison
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally detecting control chars
+    const controlCharPattern = /[\x00-\x1F\x7F]/;
+    if (controlCharPattern.test(name)) {
+      throw new Error('Goal name cannot contain control characters');
     }
   }
 }

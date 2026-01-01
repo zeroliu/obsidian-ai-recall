@@ -66,6 +66,74 @@ export interface AnthropicLLMConfig {
   model?: string; // Default: claude-3-5-sonnet-20241022
   maxTokens?: number; // Default: 4096
   apiVersion?: string; // Default: 2023-06-01
+  /** Maximum requests per minute. Default: 10 */
+  maxRequestsPerMinute?: number;
+}
+
+/**
+ * Simple rate limiter using a sliding window approach.
+ */
+class RateLimiter {
+  private requestTimestamps: number[] = [];
+  private readonly maxRequests: number;
+  private readonly windowMs: number;
+
+  constructor(maxRequests: number, windowMs = 60000) {
+    this.maxRequests = maxRequests;
+    this.windowMs = windowMs;
+  }
+
+  /**
+   * Check if a request can be made.
+   */
+  canMakeRequest(): boolean {
+    this.cleanupOldTimestamps();
+    return this.requestTimestamps.length < this.maxRequests;
+  }
+
+  /**
+   * Record a request.
+   */
+  recordRequest(): void {
+    this.requestTimestamps.push(Date.now());
+  }
+
+  /**
+   * Get the wait time until a request can be made.
+   * Returns 0 if a request can be made immediately.
+   */
+  getWaitTime(): number {
+    this.cleanupOldTimestamps();
+    if (this.requestTimestamps.length < this.maxRequests) {
+      return 0;
+    }
+    const oldestTimestamp = this.requestTimestamps[0];
+    return Math.max(0, oldestTimestamp + this.windowMs - Date.now());
+  }
+
+  /**
+   * Get the current request count.
+   */
+  getRequestCount(): number {
+    this.cleanupOldTimestamps();
+    return this.requestTimestamps.length;
+  }
+
+  /**
+   * Wait until a request can be made.
+   */
+  async waitForSlot(): Promise<void> {
+    const waitTime = this.getWaitTime();
+    if (waitTime > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+  }
+
+  private cleanupOldTimestamps(): void {
+    const now = Date.now();
+    const cutoff = now - this.windowMs;
+    this.requestTimestamps = this.requestTimestamps.filter((ts) => ts > cutoff);
+  }
 }
 
 /**
@@ -78,6 +146,7 @@ export class AnthropicLLMAdapter implements ILLMProvider {
   private readonly defaultMaxTokens: number;
   private readonly apiVersion: string;
   private readonly baseUrl = 'https://api.anthropic.com/v1';
+  private readonly rateLimiter: RateLimiter;
 
   constructor(config: AnthropicLLMConfig) {
     if (!config.apiKey || config.apiKey.trim().length === 0) {
@@ -87,9 +156,12 @@ export class AnthropicLLMAdapter implements ILLMProvider {
     this.model = config.model ?? 'claude-3-5-sonnet-20241022';
     this.defaultMaxTokens = config.maxTokens ?? 4096;
     this.apiVersion = config.apiVersion ?? '2023-06-01';
+    this.rateLimiter = new RateLimiter(config.maxRequestsPerMinute ?? 10);
   }
 
   async chat(messages: LLMMessage[], options?: LLMChatOptions): Promise<LLMResponse> {
+    await this.enforceRateLimit();
+
     const { systemMessage, userMessages } = this.separateSystemMessage(messages);
     const requestBody = this.buildRequestBody(systemMessage, userMessages, options, false);
 
@@ -101,7 +173,7 @@ export class AnthropicLLMAdapter implements ILLMProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Anthropic API error (${response.status}): ${errorText}`);
+      this.handleErrorResponse(response.status, errorText);
     }
 
     const data = (await response.json()) as AnthropicMessageResponse;
@@ -120,6 +192,8 @@ export class AnthropicLLMAdapter implements ILLMProvider {
     callbacks: LLMStreamCallbacks,
     options?: LLMChatOptions,
   ): Promise<void> {
+    await this.enforceRateLimit();
+
     const { systemMessage, userMessages } = this.separateSystemMessage(messages);
     const requestBody = this.buildRequestBody(systemMessage, userMessages, options, true);
 
@@ -133,7 +207,7 @@ export class AnthropicLLMAdapter implements ILLMProvider {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Anthropic API error (${response.status}): ${errorText}`);
+        this.handleErrorResponse(response.status, errorText);
       }
 
       await this.processStream(response, callbacks);
@@ -164,6 +238,50 @@ export class AnthropicLLMAdapter implements ILLMProvider {
     // Add 20% safety margin to avoid underestimating
     const baseEstimate = Math.ceil(text.length / 4);
     return Math.ceil(baseEstimate * 1.2);
+  }
+
+  /**
+   * Check if rate limit allows a request.
+   */
+  isRateLimited(): boolean {
+    return !this.rateLimiter.canMakeRequest();
+  }
+
+  /**
+   * Get current requests made in the rate limit window.
+   */
+  getRequestCount(): number {
+    return this.rateLimiter.getRequestCount();
+  }
+
+  /**
+   * Enforce rate limiting by waiting if necessary.
+   */
+  private async enforceRateLimit(): Promise<void> {
+    await this.rateLimiter.waitForSlot();
+    this.rateLimiter.recordRequest();
+  }
+
+  /**
+   * Handle API error responses with user-friendly messages.
+   */
+  private handleErrorResponse(status: number, errorText: string): never {
+    switch (status) {
+      case 401:
+        throw new Error('Invalid API key. Please check your Anthropic API key in settings.');
+      case 429:
+        throw new Error('Rate limited by Anthropic API. Please wait a moment before trying again.');
+      case 500:
+      case 502:
+      case 503:
+        throw new Error(
+          'Anthropic API is temporarily unavailable. Please try again in a few moments.',
+        );
+      case 400:
+        throw new Error(`Invalid request: ${errorText}`);
+      default:
+        throw new Error(`Anthropic API error (${status}): ${errorText}`);
+    }
   }
 
   /**
