@@ -4,3 +4,7 @@ export { MilestoneList } from './MilestoneList';
 export type { MilestoneListProps } from './MilestoneList';
 export { ActionCard } from './ActionCard';
 export type { ActionCardProps } from './ActionCard';
+export { CompletionDialog } from './CompletionDialog';
+export type { CompletionDialogProps } from './CompletionDialog';
+export { CelebrationBanner } from './CelebrationBanner';
+export type { CelebrationBannerProps } from './CelebrationBanner';

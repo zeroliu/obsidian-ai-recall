@@ -1188,3 +1188,214 @@
   gap: var(--ignite-space-3);
   margin-top: var(--ignite-space-4);
 }
+
+/* === DIALOG OVERLAY === */
+.ignite-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: ignite-fade-in 0.15s ease-out;
+}
+
+@keyframes ignite-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ignite-dialog {
+  max-width: 400px;
+  width: 90%;
+  animation: ignite-slide-up 0.2s ease-out;
+}
+
+@keyframes ignite-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ignite-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ignite-space-3);
+  margin-top: var(--ignite-space-4);
+}
+
+/* === COMPLETION DIALOG === */
+.ignite-completion-dialog {
+  text-align: center;
+}
+
+.ignite-completion-dialog-icon {
+  font-size: 48px;
+  margin-bottom: var(--ignite-space-3);
+}
+
+.ignite-completion-dialog-title {
+  margin: 0 0 var(--ignite-space-3) 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ignite-text);
+}
+
+.ignite-completion-dialog-message {
+  margin: 0 0 var(--ignite-space-2) 0;
+  font-size: var(--ignite-font-size-base);
+  color: var(--ignite-text);
+  line-height: 1.5;
+}
+
+.ignite-completion-dialog-description {
+  margin: 0;
+  font-size: var(--ignite-font-size-sm);
+  color: var(--ignite-text-muted);
+  line-height: 1.5;
+}
+
+.ignite-completion-dialog .ignite-dialog-actions {
+  justify-content: center;
+}
+
+/* === CELEBRATION BANNER === */
+.ignite-celebration-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--color-green-rgb), 0.15) 0%,
+    rgba(var(--color-blue-rgb), 0.15) 100%
+  );
+  border-color: var(--ignite-success);
+}
+
+.ignite-celebration-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ignite-space-4);
+}
+
+.ignite-celebration-banner-emoji {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.ignite-celebration-banner-text {
+  text-align: center;
+}
+
+.ignite-celebration-banner-title {
+  margin: 0 0 var(--ignite-space-1) 0;
+  font-size: var(--ignite-font-size-lg);
+  font-weight: 600;
+  color: var(--ignite-success);
+}
+
+.ignite-celebration-banner-message {
+  margin: 0;
+  font-size: var(--ignite-font-size-base);
+  color: var(--ignite-text);
+  line-height: 1.5;
+}
+
+.ignite-celebration-banner-date {
+  color: var(--ignite-text-muted);
+}
+
+/* === ERROR MESSAGE === */
+.ignite-error-message {
+  display: flex;
+  gap: var(--ignite-space-3);
+  padding: var(--ignite-space-4);
+  border-radius: var(--ignite-radius-md);
+  border: 1px solid var(--ignite-error);
+  background-color: rgba(var(--color-red-rgb), 0.1);
+}
+
+.ignite-error-message-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.ignite-error-message-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ignite-error-message-title {
+  margin: 0 0 var(--ignite-space-1) 0;
+  font-size: var(--ignite-font-size-base);
+  font-weight: 600;
+  color: var(--ignite-text);
+}
+
+.ignite-error-message-text {
+  margin: 0;
+  font-size: var(--ignite-font-size-sm);
+  color: var(--ignite-text);
+  line-height: 1.5;
+}
+
+.ignite-error-message-actions {
+  display: flex;
+  gap: var(--ignite-space-2);
+  margin-top: var(--ignite-space-3);
+}
+
+.ignite-error-message-network {
+  border-color: var(--ignite-warning);
+  background-color: rgba(var(--color-yellow-rgb), 0.1);
+}
+
+.ignite-error-message-validation {
+  border-color: var(--ignite-error);
+}
+
+.ignite-error-message-api {
+  border-color: var(--ignite-error);
+}
+
+/* === COMPLETION HINT === */
+.ignite-goal-detail-completion-hint {
+  margin: var(--ignite-space-3) 0 0 0;
+  padding: var(--ignite-space-2) var(--ignite-space-3);
+  background-color: rgba(var(--color-green-rgb), 0.1);
+  border-radius: var(--ignite-radius-sm);
+  font-size: var(--ignite-font-size-sm);
+  color: var(--ignite-success);
+  text-align: center;
+}
+
+/* === API KEY STATUS (Settings) === */
+.ignite-api-key-status {
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.ignite-api-key-status-empty {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+
+.ignite-api-key-status-valid {
+  background-color: rgba(var(--color-green-rgb), 0.1);
+  color: var(--color-green);
+}
+
+.ignite-api-key-status-invalid {
+  background-color: rgba(var(--color-red-rgb), 0.1);
+  color: var(--color-red);
+}

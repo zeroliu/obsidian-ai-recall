@@ -146,7 +146,7 @@ describe('AnthropicLLMAdapter', () => {
       });
 
       await expect(adapter.chat([{ role: 'user', content: 'Hello' }])).rejects.toThrow(
-        'Anthropic API error (401): Invalid API key',
+        'Invalid API key. Please check your Anthropic API key in settings.',
       );
     });
 

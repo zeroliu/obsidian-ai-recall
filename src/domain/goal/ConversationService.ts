@@ -247,6 +247,101 @@ export class ConversationService {
   }
 
   /**
+   * Attempt to recover a corrupted conversation file.
+   * Returns a recovered conversation or null if recovery is not possible.
+   */
+  async recoverConversation(goalId: string, conversationId: string): Promise<Conversation | null> {
+    const path = this.getConversationPath(goalId, conversationId);
+    const exists = await this.vaultProvider.exists(path);
+
+    if (!exists) {
+      return null;
+    }
+
+    try {
+      const content = await this.vaultProvider.readFile(path);
+
+      // Try to extract any usable data from the corrupted file
+      const recovered = this.attemptRecovery(content, goalId, conversationId);
+      if (recovered) {
+        // Save the recovered conversation
+        await this.saveConversation(recovered);
+        return recovered;
+      }
+
+      return null;
+    } catch (error) {
+      console.error(`Recovery failed for conversation ${conversationId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Reset a corrupted conversation to an empty state.
+   * Use this when recovery is not possible.
+   */
+  async resetConversation(goalId: string, conversationId: string): Promise<Conversation> {
+    const path = this.getConversationPath(goalId, conversationId);
+    const exists = await this.vaultProvider.exists(path);
+
+    const now = new Date().toISOString();
+    const conversation: Conversation = {
+      id: exists ? conversationId : this.generateConversationId(),
+      goalId,
+      topic: 'Recovered Discussion',
+      messages: [],
+      createdAt: now,
+    };
+
+    await this.saveConversation(conversation);
+    return conversation;
+  }
+
+  /**
+   * Attempt to recover data from corrupted conversation content.
+   */
+  private attemptRecovery(
+    content: string,
+    goalId: string,
+    conversationId: string,
+  ): Conversation | null {
+    try {
+      // Try to parse frontmatter first
+      let id = conversationId;
+      let topic = 'Recovered Discussion';
+      let createdAt = new Date().toISOString();
+
+      // Try extracting frontmatter data
+      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (frontmatterMatch) {
+        const frontmatterContent = frontmatterMatch[1];
+        const idMatch = frontmatterContent.match(/id:\s*["']?([^"'\n]+)["']?/);
+        const topicMatch = frontmatterContent.match(/topic:\s*["']?([^"'\n]+)["']?/);
+        const createdMatch = frontmatterContent.match(/createdAt:\s*["']?([^"'\n]+)["']?/);
+
+        if (idMatch) id = idMatch[1].trim();
+        if (topicMatch) topic = topicMatch[1].trim();
+        if (createdMatch) createdAt = createdMatch[1].trim();
+      }
+
+      // Try to extract messages from body
+      const bodyStart = content.indexOf('---', 3);
+      const body = bodyStart > 0 ? content.slice(bodyStart + 3).trim() : content;
+      const messages = this.parseMessagesFromBody(body);
+
+      return {
+        id,
+        goalId,
+        topic,
+        messages,
+        createdAt,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Load a conversation from a file path.
    */
   private async loadConversation(path: string): Promise<Conversation> {
